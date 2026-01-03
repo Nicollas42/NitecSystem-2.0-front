@@ -3,13 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 // --- Layout Principal ---
 import DashboardLayout from '../layouts/DashboardLayout.vue'
 
-// --- CORREÇÃO: Apontando para a pasta "Login" ---
+// --- Views de Autenticação ---
 import LoginView from '../views/Login/LoginView.vue'
 import RegisterView from '../views/Login/RegisterView.vue'
 import ForgotPasswordView from '../views/Login/ForgotPasswordView.vue'
 import ResetPasswordView from '../views/Login/ResetPasswordView.vue'
 
-// --- Dashboard (Se estiver na raiz de views) ---
+// --- Dashboard ---
 import DashboardView from '../views/DashboardView.vue'
 
 const router = createRouter({
@@ -44,7 +44,7 @@ const router = createRouter({
       component: ResetPasswordView
     },
 
-    // ROTAS PROTEGIDAS
+    // ROTAS PROTEGIDAS (DASHBOARD)
     {
       path: '/', 
       component: DashboardLayout,
@@ -66,7 +66,8 @@ const router = createRouter({
           component: () => import('../views/Financeiro/FinanceiroView.vue')
         },
         {
-          path: 'estoque',
+          // CORREÇÃO: Removida a barra "/" inicial para ficar igual aos outros
+          path: 'estoque', 
           name: 'estoque',
           component: () => import('../views/Estoque/EstoqueView.vue')
         },
@@ -80,7 +81,7 @@ const router = createRouter({
   ]
 })
 
-// GUARD GLOBAL
+// GUARD GLOBAL DE PROTEÇÃO
 router.beforeEach((to, from, next) => {
     if (to.matched.some(record => record.meta.requer_autenticacao)) {
         if (!localStorage.getItem('token_erp')) {
