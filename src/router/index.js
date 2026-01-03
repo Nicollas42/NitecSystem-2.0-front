@@ -1,13 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import LoginView from '../views/LoginView.vue'
+
+// --- Layout Principal ---
+import DashboardLayout from '../layouts/DashboardLayout.vue'
+
+// --- CORREÇÃO: Apontando para a pasta "Login" ---
+import LoginView from '../views/Login/LoginView.vue'
+import RegisterView from '../views/Login/RegisterView.vue'
+import ForgotPasswordView from '../views/Login/ForgotPasswordView.vue'
+import ResetPasswordView from '../views/Login/ResetPasswordView.vue'
+
+// --- Dashboard (Se estiver na raiz de views) ---
 import DashboardView from '../views/DashboardView.vue'
-import RegisterView from '../views/RegisterView.vue' // <--- IMPORTADO
-import ForgotPasswordView from '../views/ForgotPasswordView.vue'
-import ResetPasswordView from '../views/ResetPasswordView.vue'; // Importe o arquivo
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // ROTAS PÚBLICAS
     {
       path: '/',
       name: 'login',
@@ -23,7 +31,7 @@ const router = createRouter({
     {
       path: '/cadastro',
       name: 'cadastro',
-      component: RegisterView // <--- NOVA ROTA
+      component: RegisterView
     },
     {
       path: '/esqueci-senha',
@@ -31,22 +39,55 @@ const router = createRouter({
       component: ForgotPasswordView
     },
     {
-    path: '/redefinir-senha',
-    name: 'redefinir-senha',
-    component: ResetPasswordView
+      path: '/redefinir-senha',
+      name: 'redefinir-senha',
+      component: ResetPasswordView
     },
+
+    // ROTAS PROTEGIDAS
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: DashboardView,
-      meta: { requer_autenticacao: true }
+      path: '/', 
+      component: DashboardLayout,
+      meta: { requer_autenticacao: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: DashboardView
+        },
+        {
+          path: 'frente-de-caixa',
+          name: 'caixa',
+          component: () => import('../views/Caixa/CaixaView.vue')
+        },
+        {
+          path: 'financeiro', 
+          name: 'financeiro',
+          component: () => import('../views/Financeiro/FinanceiroView.vue')
+        },
+        {
+          path: 'estoque',
+          name: 'estoque',
+          component: () => import('../views/Estoque/EstoqueView.vue')
+        },
+        {
+          path: 'sobras',
+          name: 'sobras',
+          component: () => import('../views/Sobras/SobrasView.vue')
+        }
+      ]
     }
   ]
 })
 
+// GUARD GLOBAL
 router.beforeEach((to, from, next) => {
-    if (to.meta.requer_autenticacao && !localStorage.getItem('token_erp')) {
-        next('/'); 
+    if (to.matched.some(record => record.meta.requer_autenticacao)) {
+        if (!localStorage.getItem('token_erp')) {
+            next('/'); 
+        } else {
+            next(); 
+        }
     } else {
         next(); 
     }
