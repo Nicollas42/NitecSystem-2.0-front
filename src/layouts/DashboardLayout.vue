@@ -11,7 +11,8 @@ import {
   Menu,
   ChevronLeft,
   Moon,
-  Sun
+  Sun,
+  Store
 } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -63,6 +64,11 @@ onMounted(() => {
             <span class="texto_link" v-show="menu_expandido">Dashboard</span>
         </RouterLink>
         
+        <RouterLink to="/meu-negocio" class="item_menu" active-class="ativo">
+            <Store size="22" />
+            <span class="texto_link" v-show="menu_expandido">Meu Negócio</span>
+        </RouterLink>
+
         <RouterLink to="/frente-de-caixa" class="item_menu" active-class="ativo">
             <ShoppingCart size="22" />
             <span class="texto_link" v-show="menu_expandido">Caixa (PDV)</span>

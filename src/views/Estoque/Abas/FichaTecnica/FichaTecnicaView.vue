@@ -45,13 +45,7 @@
             />
         </div>
     </div>
-
-    <div v-else class="aviso_selecao">
-        <div style="font-size: 40px; margin-bottom: 10px;">🍞</div>
-        Selecione um produto <strong>INTERNO</strong> acima.
     </div>
-
-  </div>
 </template>
 
 <script setup>
@@ -65,26 +59,23 @@ const produto_id = ref('');
 const sub_aba = ref('ingredientes');
 const lista_produtos_internos = ref([]);
 
-// ESTADO CENTRALIZADO DA FICHA (Compartilhado entre abas)
 const dados_ficha = reactive({
-    ingredientes: [], // Lista de itens { nome, custo... }
-    maquinas: [],     // Lista de uso { maquina, tempo... }
-    total_ingredientes: 0,
-    total_operacional: 0
+    ingredientes: [], maquinas: [], total_ingredientes: 0, total_operacional: 0
 });
 
 const carregar_produtos_internos = async () => {
+    const lojaId = localStorage.getItem('loja_ativa_id');
     try {
         const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
+            params: { loja_id: lojaId } // <--- Importante para pegar contexto
         });
         lista_produtos_internos.value = res.data.filter(p => p.tipo_item === 'INTERNO');
     } catch (e) { console.error(e); }
 };
 
+// ... Resto das funções iguais ...
 const carregar_dados_produto = () => {
-    // Aqui futuramente buscaríamos a receita salva no banco
-    // Por enquanto, reseta para começar uma nova
     dados_ficha.ingredientes = [];
     dados_ficha.maquinas = [];
     dados_ficha.total_ingredientes = 0;
@@ -95,15 +86,10 @@ onMounted(carregar_produtos_internos);
 </script>
 
 <style scoped>
+/* (Seus estilos aqui) */
 .container_ficha { background: var(--bg-card); padding: 20px; border-radius: 10px; border: 1px solid var(--border-color); }
-.selecao_produto { margin-bottom: 20px; }
-.selecao_produto label { display: block; margin-bottom: 5px; color: var(--text-secondary); font-weight: 500; }
-.navegacao_sub { display: flex; gap: 5px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
-.aba_sub {
-    background: none; border: none; padding: 10px 15px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s;
-}
-.aba_sub:hover { color: var(--text-primary); }
-.aba_sub.ativo { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: bold; }
-.aviso_selecao { text-align: center; color: var(--text-primary); padding: 40px; border: 2px dashed var(--border-color); border-radius: 8px; background: var(--bg-page); }
 .input_padrao { width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; }
+.navegacao_sub { display: flex; gap: 5px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+.aba_sub { background: none; border: none; padding: 10px 15px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; }
+.aba_sub.ativo { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: bold; }
 </style>

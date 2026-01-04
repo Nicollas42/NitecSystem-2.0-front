@@ -9,8 +9,10 @@ import RegisterView from '../views/Login/RegisterView.vue'
 import ForgotPasswordView from '../views/Login/ForgotPasswordView.vue'
 import ResetPasswordView from '../views/Login/ResetPasswordView.vue'
 
+
 // --- Dashboard ---
 import DashboardView from '../views/DashboardView.vue'
+import MeuNegocioView from '../views/Configuracoes/MeuNegocioView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -75,6 +77,11 @@ const router = createRouter({
           path: 'sobras',
           name: 'sobras',
           component: () => import('../views/Sobras/SobrasView.vue')
+        },
+        {
+          path: 'meu-negocio',
+          name: 'meu-negocio',
+          component: MeuNegocioView // Ou () => import(...)
         }
       ]
     }
