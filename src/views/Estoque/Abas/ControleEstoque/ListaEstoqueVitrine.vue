@@ -1,8 +1,8 @@
 <template>
   <div>
-    <div class="barra_topo_dep">
-        <h4 style="color: var(--primary-color); margin: 0;">📦 Estoque DEP (Depósito)</h4>
-        <input type="text" v-model="busca" placeholder="🔍 Buscar no depósito..." class="input_padrao">
+    <div class="barra_topo">
+        <h4 style="color: #d97706; margin: 0;">🏪 Vitrine / Frente de Loja</h4>
+        <input type="text" v-model="busca" placeholder="🔍 Buscar na vitrine..." class="input_padrao">
     </div>
 
     <div class="table_container">
@@ -10,12 +10,12 @@
           <thead>
             <tr>
               <th width="50" class="col_center">ID</th>
-              <th class="col_left">Produto / Detalhes</th>
+              <th class="col_left">Produto</th>
               <th class="col_center">Custo</th>
               <th class="col_center">Venda</th>
               <th class="col_center" width="140">Validade (Dias)</th>
               <th class="col_center">Depósito</th>
-              <th class="col_center" style="opacity: 0.6;">Vitrine</th>
+              <th class="col_center">Vitrine</th>
               <th width="50" class="col_center">Ação</th>
             </tr>
           </thead>
@@ -56,28 +56,27 @@
                         <span v-else class="texto_vazio">---</span>
                     </td>
     
-                    <td class="coluna_deposito col_center">
-                        <span :class="{ 'estoque_baixo': prod.estoque_deposito <= (prod.estoque_minimo || 5) }">
-                            {{ formatar_qtd(prod.estoque_deposito) }}
-                        </span>
+                    <td class="col_center" style="opacity: 0.6;">
+                        {{ formatar_qtd(prod.estoque_deposito) }}
                         <small class="unidade">{{ prod.unidade_medida }}</small>
                     </td>
 
-                    <td class="col_center" style="opacity: 0.6;">
+                    <td class="coluna_vitrine_ativa col_center">
                         {{ formatar_qtd(prod.estoque_vitrine) }}
                         <small class="unidade">{{ prod.unidade_medida }}</small>
                     </td>
 
                     <td class="col_center">
-                        <button class="botao_acao" @click="iniciar_edicao(prod)">
-                            {{ id_editando === prod.id ? '🔼' : '✏️' }}
-                        </button>
+                        <button class="botao_acao" @click="iniciar_edicao(prod)">✏️</button>
                     </td>
                 </tr>
     
                 <tr v-if="id_editando === prod.id" class="linha_edicao">
                     <td colspan="8">
                         <div class="box_edicao_expandida">
+                            <p style="margin-bottom:10px; color:var(--text-secondary); font-size:13px;">
+                                ℹ️ Ajuste os valores abaixo para transferir do Depósito para Vitrine.
+                            </p>
                             <CadastroProduto 
                                 :produtoEdicao="prod" 
                                 @salvo="finalizar_edicao" 
@@ -92,13 +91,13 @@
         </table>
     </div>
     
-    <p v-if="lista_produtos.length === 0" class="aviso_vazio">
-      Nenhum produto encontrado.
+    <p v-if="lista_filtrada.length === 0" class="aviso_vazio">
+      Nenhum produto exposto na vitrine no momento.
     </p>
 
     <PasswordModal 
         :isOpen="modal_senha_aberto"
-        mensagem="Senha para editar produto:"
+        mensagem="Senha para editar estoque:"
         @close="modal_senha_aberto = false"
         @confirm="senha_confirmada"
     />
@@ -125,6 +124,7 @@ const calcular_situacao_validade = (dataValidade) => {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const validade = new Date(dataValidade + 'T00:00:00');
     const dias = Math.ceil((validade - hoje) / (1000 * 60 * 60 * 24));
+    
     if (dias <= 0) return { dias, label: '❌ Vencido', classe: 'status_vencido' };
     if (dias <= 10) return { dias, label: '🔴 Crítico', classe: 'status_critico' };
     if (dias <= 20) return { dias, label: '🟠 Atenção', classe: 'status_atencao' };
@@ -133,17 +133,20 @@ const calcular_situacao_validade = (dataValidade) => {
 };
 
 const lista_filtrada = computed(() => {
-    if(!busca.value) return lista_produtos.value;
-    const termo = busca.value.toLowerCase();
-    return lista_produtos.value.filter(p => 
-        p.nome.toLowerCase().includes(termo) || 
-        String(p.id).includes(termo) ||
-        (p.codigo_barras && p.codigo_barras.includes(termo)) ||
-        (p.codigo_balanca && String(p.codigo_balanca).includes(termo))
-    );
+    let lista = lista_produtos.value.filter(p => parseFloat(p.estoque_vitrine) > 0);
+    if(busca.value) {
+        const termo = busca.value.toLowerCase();
+        lista = lista.filter(p => 
+            p.nome.toLowerCase().includes(termo) ||
+            String(p.id).includes(termo) ||
+            (p.codigo_barras && p.codigo_barras.includes(termo)) ||
+            (p.codigo_balanca && String(p.codigo_balanca).includes(termo))
+        );
+    }
+    return lista;
 });
 
-const carregar_produtos_locais = async () => {
+const carregar_vitrine = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     if (!lojaId) return;
     try {
@@ -174,14 +177,14 @@ const senha_confirmada = async (senha) => {
 
 const finalizar_edicao = async () => {
     id_editando.value = null;
-    await carregar_produtos_locais();
+    await carregar_vitrine();
 };
 
-onMounted(carregar_produtos_locais);
+onMounted(carregar_vitrine);
 </script>
 
 <style scoped>
-.barra_topo_dep { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.barra_topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .input_padrao { width: 300px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); }
 .table_container { overflow-x: auto; }
 .tabela_produtos { width: 100%; border-collapse: collapse; min-width: 900px; }
@@ -208,11 +211,10 @@ onMounted(carregar_produtos_locais);
 .status_validade { font-size: 10px; font-weight: 600; text-transform: uppercase; }
 .status_vencido { background: #fee2e2; color: #991b1b; } .status_critico { background: #fee2e2; color: #ef4444; } .status_atencao { background: #ffedd5; color: #c2410c; } .status_proximo { background: #fef9c3; color: #a16207; } .status_ok { background: #f0fdf4; color: #15803d; }
 
-.coluna_deposito { font-weight: bold; background: rgba(59, 130, 246, 0.05); border-radius: 4px; }
-.estoque_baixo { color: #ef4444; }
+.coluna_vitrine_ativa { background: #fffbeb; color: #d97706; font-weight: bold; border-radius: 4px; }
 .unidade { font-size: 10px; color: #999; margin-left: 2px; }
 .botao_acao { border: 1px solid var(--border-color); background: none; padding: 5px; border-radius: 4px; cursor: pointer; }
 .linha_ativa { background: rgba(59, 130, 246, 0.05); }
-.box_edicao_expandida { background: white; border-bottom: 2px solid var(--primary-color); padding: 15px; }
+.box_edicao_expandida { background: white; border-bottom: 2px solid #d97706; padding: 15px; }
 .aviso_vazio { text-align: center; padding: 30px; color: var(--text-secondary); }
 </style>

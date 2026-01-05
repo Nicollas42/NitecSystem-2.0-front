@@ -2,17 +2,24 @@
   <div>
     <div class="navegacao_abas">
       <button 
-        :class="['aba_botao', { ativo: aba_atual === 'lista_local' }]" 
-        @click="aba_atual = 'lista_local'"
+        :class="['aba_botao', { ativo: aba_atual === 'lista_dep' }]" 
+        @click="aba_atual = 'lista_dep'"
       >
-        📦 Estoque Atual
+        📦 Estoque DEP (Depósito)
+      </button>
+      
+      <button 
+        :class="['aba_botao', { ativo: aba_atual === 'lista_vit' }]" 
+        @click="aba_atual = 'lista_vit'"
+      >
+        🏪 Estoque VIT (Loja)
       </button>
       
       <button 
         :class="['aba_botao', { ativo: aba_atual === 'lista_geral' }]" 
         @click="aba_atual = 'lista_geral'"
       >
-        🌎 Estoque Geral (Rede)
+        🌎 Geral (Rede)
       </button>
 
       <button 
@@ -25,13 +32,20 @@
 
     <div class="area_conteudo">
         
-        <ListaEstoqueLocal v-if="aba_atual === 'lista_local'" />
+        <ListaEstoqueLocal 
+            v-if="aba_atual === 'lista_dep'" 
+            titulo="Depósito"
+        />
+        
+        <ListaEstoqueVitrine 
+            v-if="aba_atual === 'lista_vit'" 
+        />
         
         <ListaEstoqueGeral v-if="aba_atual === 'lista_geral'" />
         
         <CadastroProduto 
             v-if="aba_atual === 'cadastro'" 
-            @cancelar="aba_atual = 'lista_local'"
+            @cancelar="aba_atual = 'lista_dep'"
             @salvo="produto_salvo"
         />
 
@@ -42,16 +56,16 @@
 <script setup>
 import { ref } from 'vue';
 
-// Importando os componentes da pasta nova
+// Componentes
 import ListaEstoqueLocal from './ControleEstoque/ListaEstoqueLocal.vue';
+import ListaEstoqueVitrine from './ControleEstoque/ListaEstoqueVitrine.vue'; // <--- NOVO
 import ListaEstoqueGeral from './ControleEstoque/ListaEstoqueGeral.vue';
 import CadastroProduto from './ControleEstoque/CadastroProduto.vue';
 
-const aba_atual = ref('lista_local');
+const aba_atual = ref('lista_dep');
 
 const produto_salvo = () => {
-    // Quando salva, volta para a lista local para ver o item novo
-    aba_atual.value = 'lista_local';
+    aba_atual.value = 'lista_dep'; // Volta para o depósito ao salvar
 };
 </script>
 

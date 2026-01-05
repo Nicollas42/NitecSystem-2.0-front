@@ -42,17 +42,24 @@
     </div>
 
     <div class="tabela_simples">
-        <div class="cabecalho_tabela">
+        <div class="cabecalho_tabela_maq">
+            <span>ID</span>
             <span>Recurso</span>
-            <span>Tempo</span>
+            <span>Potência</span> <span>Tempo</span>
             <span>Custo Energia/Gás</span>
             <span>Depreciação</span>
             <span>Total</span>
             <span>Ação</span>
         </div>
         
-        <div v-for="(item, index) in lista" :key="index" class="linha_tabela">
+        <div v-for="(item, index) in lista" :key="index" class="linha_tabela_maq">
+            <span style="font-weight:bold; color:var(--primary-color);">#{{ item.id }}</span>
             <span>{{ item.nome }}</span>
+            
+            <span v-if="item.potencia_watts">{{ item.potencia_watts }} W</span>
+            <span v-else-if="item.consumo_gas">{{ item.consumo_gas }} kg/h</span>
+            <span v-else>---</span>
+
             <span>{{ item.minutos }} min</span>
             <span>R$ {{ item.custo_energia.toFixed(2) }}</span>
             <span>R$ {{ item.custo_depreciacao.toFixed(2) }}</span>
@@ -153,37 +160,24 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
-// --- PROPS & EMITS (Comunicação com o Pai) ---
 const props = defineProps(['lista']);
 const emit = defineEmits(['atualizar-total']);
 
-// --- ESTADO ---
 const lista_equipamentos_db = ref([]);
 const modal_tarifas_aberto = ref(false);
 const modal_equipamento_aberto = ref(false);
-
-// Tarifas (Padrão, mas editáveis no modal localmente)
 const tarifas = ref({ energia: 0.95, gas: 9.50, mao_obra: 15.00 });
 
-// Form Novo Equipamento
-const novo_eq = ref({ 
-    nome: '', 
-    tipo_energia: 'ELETRICO', 
-    potencia_watts: 0, 
-    consumo_gas_kg_h: 0, 
-    valor_aquisicao: 0, 
-    valor_residual: 0, 
-    vida_util_anos: 10 
-});
-
-// Form Uso na Receita
+const novo_eq = ref({ nome: '', tipo_energia: 'ELETRICO', potencia_watts: 0, consumo_gas_kg_h: 0, valor_aquisicao: 0, valor_residual: 0, vida_util_anos: 10 });
 const uso_temp = ref({ equipamento_id: '', minutos: 0, dados_maquina: null });
 
-// --- API: BUSCAR E SALVAR ---
+// BUSCAR COM FILTRO DE LOJA
 const buscar_equipamentos = async () => {
+    const lojaId = localStorage.getItem('loja_ativa_id'); 
     try {
         const res = await axios.get('http://127.0.0.1:8000/api/equipamentos', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
+            params: { loja_id: lojaId } // FILTRO APLICADO
         });
         lista_equipamentos_db.value = res.data;
     } catch (e) {
@@ -192,12 +186,12 @@ const buscar_equipamentos = async () => {
 };
 
 const salvar_no_banco = async () => {
-    // Validação básica
     if(!novo_eq.value.nome) return alert("Digite o nome do equipamento.");
+    const lojaId = localStorage.getItem('loja_ativa_id');
 
-    // Envia o cálculo mensal já pronto para facilitar, ou o backend calcula
     const payload = {
         ...novo_eq.value,
+        loja_id: lojaId, // SALVAR COM FILIAL
         depreciacao_mensal: parseFloat(calc_deprec_mensal.value)
     };
 
@@ -205,79 +199,52 @@ const salvar_no_banco = async () => {
         await axios.post('http://127.0.0.1:8000/api/equipamentos', payload, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
-        
         alert('Equipamento Salvo com Sucesso!');
         modal_equipamento_aberto.value = false;
-        
-        // Limpa form
         novo_eq.value = { nome: '', tipo_energia: 'ELETRICO', potencia_watts: 0, consumo_gas_kg_h: 0, valor_aquisicao: 0, valor_residual: 0, vida_util_anos: 10 };
-        
-        // Recarrega a lista
         buscar_equipamentos();
     } catch (e) {
         alert("Erro ao salvar: " + (e.response?.data?.message || e.message));
     }
 };
 
-// --- CÁLCULOS AUXILIARES ---
-
-// Depreciação Mensal (Visual para o cadastro)
 const calc_deprec_mensal = computed(() => {
     const v_compra = parseFloat(novo_eq.value.valor_aquisicao) || 0;
     const v_resid = parseFloat(novo_eq.value.valor_residual) || 0;
     const anos = parseFloat(novo_eq.value.vida_util_anos) || 1;
-    
-    // (Valor - Residual) / Anos / 12 meses
     const anual = (v_compra - v_resid) / anos;
     return (anual / 12).toFixed(2);
 });
 
-// Seleção no Dropdown
 const selecionar_maquina = () => {
     const maquina = lista_equipamentos_db.value.find(e => e.id === uso_temp.value.equipamento_id);
     uso_temp.value.dados_maquina = maquina;
 };
 
-// Preview do custo antes de adicionar na tabela
 const custo_uso_preview = computed(() => {
     const maquina = uso_temp.value.dados_maquina;
     const minutos = parseFloat(uso_temp.value.minutos) || 0;
-    
     if (!maquina || minutos <= 0) return "0.00";
-
     const { custo_energia, custo_depreciacao } = calcular_custos(maquina, minutos);
     return (custo_energia + custo_depreciacao).toFixed(2);
 });
 
-// Função Central de Cálculo
 const calcular_custos = (maquina, minutos) => {
     const horas = minutos / 60;
     let custo_energia = 0;
 
-    // 1. Custo Combustível (Energia ou Gás)
     if (maquina.tipo_energia === 'ELETRICO') {
-        // (Watts / 1000) * Horas * Tarifa kWh
         const kwh = (maquina.potencia_watts / 1000) * horas;
         custo_energia = kwh * tarifas.value.energia;
     } else {
-        // kg/h * Horas * Tarifa Gás
         const kg_gas = maquina.consumo_gas_kg_h * horas;
         custo_energia = kg_gas * tarifas.value.gas;
     }
 
-    // 2. Custo Depreciação
-    // O backend já deve retornar 'depreciacao_hora' calculado, ou calculamos aqui via mensal / 220
-    // Se o backend salvar 'depreciacao_hora', usamos direto.
-    // Se não, usamos a lógica mensal/220 (padrão industrial).
     let custo_depreciacao = 0;
-    
-    // Tentando pegar depreciação hora direto do objeto (se o backend mandar)
     if (maquina.depreciacao_hora) {
         custo_depreciacao = parseFloat(maquina.depreciacao_hora) * horas;
     } else {
-        // Fallback: Recalcula na hora se necessário (simulação)
-        // Valor Compra... não temos esses dados na lista simples da API a menos que retornem tudo
-        // Assumindo que o controller retorna tudo:
         const v_compra = parseFloat(maquina.valor_aquisicao) || 0;
         const v_resid = parseFloat(maquina.valor_residual) || 0;
         const anos = parseFloat(maquina.vida_util_anos) || 10;
@@ -288,18 +255,18 @@ const calcular_custos = (maquina, minutos) => {
     return { custo_energia, custo_depreciacao };
 };
 
-// --- AÇÕES NA TABELA DE FICHA TÉCNICA ---
 const adicionar_uso = () => {
     const maquina = uso_temp.value.dados_maquina;
     const minutos = parseFloat(uso_temp.value.minutos);
-
     const { custo_energia, custo_depreciacao } = calcular_custos(maquina, minutos);
     const total_item = custo_energia + custo_depreciacao;
 
-    // Adiciona na lista do pai
     props.lista.push({
         id: maquina.id,
         nome: maquina.nome,
+        // DADOS SALVOS PARA EXIBIÇÃO
+        potencia_watts: maquina.potencia_watts, 
+        consumo_gas: maquina.consumo_gas_kg_h,
         minutos: minutos,
         custo_energia: custo_energia,
         custo_depreciacao: custo_depreciacao,
@@ -307,8 +274,6 @@ const adicionar_uso = () => {
     });
 
     recalcular_total_geral();
-    
-    // Reset input minutos
     uso_temp.value.minutos = 0;
 };
 
@@ -327,11 +292,9 @@ const abrir_modal_equipamento = () => {
 };
 
 onMounted(buscar_equipamentos);
-
 </script>
 
 <style scoped>
-/* ESTILOS PADRONIZADOS */
 .topo_maquinas { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .botoes_topo { display: flex; gap: 10px; }
 .titulo_sub { color: var(--primary-color); margin: 0; }
@@ -340,7 +303,6 @@ onMounted(buscar_equipamentos);
 .btn_primario { background: var(--primary-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .btn_secundario { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 15px; border-radius: 6px; cursor: pointer; }
 
-/* Box Cálculo */
 .box_calculo { background: var(--bg-page); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; }
 .linha_calc { display: flex; gap: 15px; align-items: flex-end; }
 .display_valor { padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); color: #10b981; border-radius: 6px; font-weight: bold; min-width: 100px; text-align: center; }
@@ -348,16 +310,20 @@ onMounted(buscar_equipamentos);
 .botao_add { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; height: 42px; font-weight: bold; }
 .botao_add:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Tabela */
+/* Tabela Expandida */
 .tabela_simples { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
-.cabecalho_tabela, .linha_tabela { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr; padding: 10px; }
-.cabecalho_tabela { background: var(--bg-page); font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
-.linha_tabela { border-bottom: 1px solid var(--border-color); color: var(--text-primary); align-items: center; }
+.cabecalho_tabela_maq, .linha_tabela_maq { 
+    display: grid; 
+    grid-template-columns: 0.5fr 2fr 1fr 1fr 1fr 1fr 1fr 0.5fr; 
+    padding: 10px; gap: 10px;
+}
+.cabecalho_tabela_maq { background: var(--bg-page); font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); font-size: 12px; }
+.linha_tabela_maq { border-bottom: 1px solid var(--border-color); color: var(--text-primary); align-items: center; font-size: 13px; }
+
 .aviso_tabela { padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic; }
 .btn_del { background: none; border: none; cursor: pointer; filter: grayscale(1); }
 .btn_del:hover { filter: none; }
 
-/* Modals */
 .modal_overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
 .modal_content { background: var(--bg-card); padding: 25px; border-radius: 12px; width: 400px; border: 1px solid var(--border-color); color: var(--text-primary); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
 .modal_content.grande { width: 600px; }
