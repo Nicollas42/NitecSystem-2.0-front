@@ -186,7 +186,6 @@ const preencher_form = () => {
         };
         categoria_selecionada.value = LISTA_CATEGORIAS.includes(p.categoria) ? p.categoria : 'Outros';
         
-        // Verifica se já usa balança
         if (p.codigo_balanca && p.codigo_balanca > 0) {
             usa_balanca.value = true;
         } else {
@@ -194,14 +193,12 @@ const preencher_form = () => {
         }
 
     } else {
-        // Reset
         form.value = { id: '', tipo_item: 'REVENDA', nome: '', codigo_barras: '', codigo_balanca: '', unidade_medida: 'UN', preco_custo: '', preco_venda: '', estoque_deposito: '', estoque_vitrine: '', validade: '' };
         categoria_selecionada.value = 'Outros';
         usa_balanca.value = false;
     }
 };
 
-// Reseta balança se não for KG/L
 watch(() => form.value.unidade_medida, (novaUnidade) => {
     if (!['KG', 'L'].includes(novaUnidade)) {
         usa_balanca.value = false;
@@ -213,27 +210,32 @@ watch(() => props.produtoEdicao, preencher_form);
 
 const submeter_form = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
+    
+    // Cria o payload base com todos os campos
     const payload = { 
         ...form.value, 
         categoria: categoria_selecionada.value, 
         loja_id: lojaId,
-        preco_custo: form.value.preco_custo || 0,
-        preco_venda: form.value.preco_venda || 0,
-        estoque_deposito: form.value.estoque_deposito || 0,
-        estoque_vitrine: form.value.estoque_vitrine || 0,
-        validade: form.value.validade || null,
-        
-        // Se usa balança, manda cod_balanca e anula EAN (opcional, depende da regra)
         codigo_balanca: usa_balanca.value ? form.value.codigo_balanca : null,
         codigo_barras: !usa_balanca.value ? form.value.codigo_barras : null
     };
 
+    // CORREÇÃO AQUI:
+    // Se for INTERNO, não enviamos dados financeiros nem de estoque.
+    // Assim o backend NÃO os atualiza (mantém o que já está salvo no banco vindo da Ficha Técnica).
     if (form.value.tipo_item === 'INTERNO') {
-        payload.preco_custo = 0;
-        payload.preco_venda = 0;
-        payload.estoque_deposito = 0;
-        payload.estoque_vitrine = 0;
-        payload.validade = null;
+        delete payload.preco_custo;
+        delete payload.preco_venda;
+        delete payload.estoque_deposito;
+        delete payload.estoque_vitrine;
+        delete payload.validade;
+    } else {
+        // Se NÃO for interno, garante que os campos vazios vão como 0 ou null
+        payload.preco_custo = form.value.preco_custo || 0;
+        payload.preco_venda = form.value.preco_venda || 0;
+        payload.estoque_deposito = form.value.estoque_deposito || 0;
+        payload.estoque_vitrine = form.value.estoque_vitrine || 0;
+        payload.validade = form.value.validade || null;
     }
 
     try {
@@ -264,7 +266,7 @@ const submeter_form = async () => {
 .linha_dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px; }
 .linha_tripla { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
 
-/* LINHA PERSONALIZADA: ID (100px) | CATEGORIA (Auto) | EAN (Auto) */
+/* LINHA PERSONALIZADA */
 .linha_id_cat_ean { 
     display: grid; 
     grid-template-columns: 100px 1fr 1fr; 

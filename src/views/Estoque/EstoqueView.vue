@@ -13,25 +13,38 @@
     </div>
 
     <div class="navegacao_macro">
-      <button 
-        :class="['botao_macro', { ativo: aba_macro === 'estoque' }]" 
-        @click="aba_macro = 'estoque'"
-      >
-        📦 Controle de Estoque
-      </button>
-      <button 
-        :class="['botao_macro', { ativo: aba_macro === 'ficha_tecnica' }]" 
-        @click="aba_macro = 'ficha_tecnica'"
-      >
-        📝 Ficha Técnica (Produção)
-      </button>
-    </div>
-
-    <div class="area_conteudo">
-        <TabEstoque v-if="aba_macro === 'estoque'" />
+        <button 
+            :class="['botao_macro', { ativo: aba_macro === 'estoque' }]" 
+            @click="aba_macro = 'estoque'"
+        >
+            📦 Controle de Estoque
+        </button>
         
-        <FichaTecnicaView v-if="aba_macro === 'ficha_tecnica'" />
-    </div>
+        <button 
+            :class="['botao_macro', { ativo: aba_macro === 'ficha_tecnica' }]" 
+            @click="aba_macro = 'ficha_tecnica'"
+        >
+            📝 Ficha Técnica (Produção)
+        </button>
+
+        <button 
+            :class="['botao_macro', { ativo: aba_macro === 'producao' }]" 
+            @click="aba_macro = 'producao'"
+        >
+            🏭 Produção Diária
+        </button>
+        </div>
+
+        <div class="area_conteudo">
+            <TabEstoque v-if="aba_macro === 'estoque'" />
+            
+            <FichaTecnicaView 
+                v-if="aba_macro === 'ficha_tecnica'" 
+                @voltar-estoque="aba_macro = 'estoque'" 
+            />
+
+            <ProducaoDiariaView v-if="aba_macro === 'producao'" />
+        </div>
 
   </div>
 </template>
@@ -40,9 +53,10 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
-// Importando os Módulos
+// Importando os Componentes Principais
 import TabEstoque from './Abas/TabEstoque.vue';
 import FichaTecnicaView from './Abas/FichaTecnica/FichaTecnicaView.vue';
+import ProducaoDiariaView from './Abas/ProducaoDiaria/ProducaoDiariaView.vue';
 
 const aba_macro = ref('estoque');
 const loja_ativa_nome = ref('');
@@ -53,12 +67,10 @@ const carregar_info_loja = async () => {
     if(!lojaId) return;
 
     try {
-        // Busca info das lojas para achar o nome da atual
         const res = await axios.get('http://127.0.0.1:8000/api/minhas-lojas', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
         
-        // Procura na matriz ou filiais
         let loja = null;
         if (res.data.matriz && res.data.matriz.id == lojaId) loja = res.data.matriz;
         else if (res.data.filiais) loja = res.data.filiais.find(f => f.id == lojaId);

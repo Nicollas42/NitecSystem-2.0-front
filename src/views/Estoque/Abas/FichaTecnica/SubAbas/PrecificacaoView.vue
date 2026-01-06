@@ -18,52 +18,98 @@
     </div>
 
     <div class="form_preco">
-        <h4 style="grid-column: span 2; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-            1. Definição de Rendimento
-        </h4>
+        
+        <h4 class="titulo_secao_form">1. Definição de Rendimento</h4>
+        
+        <div class="linha_equacao">
+            <div class="grupo_eq">
+                <label>Custo Total</label>
+                <div class="valor_estatico">R$ {{ custo_total_receita.toFixed(2) }}</div>
+            </div>
 
-        <div class="grupo" style="grid-column: span 2;">
-            <label>Rendimento da Receita (Qtd. Unidades/Kg Produzidos) *</label>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="number" step="0.001" v-model="rendimento" class="input_padrao destaque_rendimento" placeholder="Ex: 200 (Unidades) ou 5.5 (Kg)">
-                <span style="font-weight: bold; color: var(--text-secondary);"> = </span>
-                <div class="card_unitario">
-                    <span>Custo UNITÁRIO:</span>
-                    <strong>R$ {{ custo_unitario }}</strong>
+            <div class="operador">÷</div>
+
+            <div class="grupo_eq">
+                <label v-if="unidade_produto === 'KG' || unidade_produto === 'L'">
+                    Rendimento (Peso Total)
+                </label>
+                <label v-else>
+                    Rendimento (Qtd. Unidades)
+                </label>
+
+                <input 
+                    type="number" 
+                    step="0.001" 
+                    v-model="rendimento" 
+                    class="input_padrao centro" 
+                    :placeholder="unidade_produto === 'KG' ? 'Ex: 5.200' : 'Ex: 12'"
+                >
+            </div>
+
+            <div class="operador">=</div>
+
+            <div class="grupo_eq">
+                <label v-if="unidade_produto === 'KG' || unidade_produto === 'L'">
+                    Custo do Quilo/Litro
+                </label>
+                <label v-else>
+                    Custo Unitário
+                </label>
+
+                <div class="valor_resultado">
+                    R$ {{ custo_unitario }}
                 </div>
             </div>
-            <small class="ajuda">Informe quanto essa receita rende para calcular o custo de 1 unidade.</small>
         </div>
+        
+        <small class="ajuda_centro" v-if="unidade_produto === 'KG'">
+            ℹ️ Como é um produto pesado (KG), informe o <strong>peso total da massa</strong> pronta.
+        </small>
+        <small class="ajuda_centro" v-else>
+            ℹ️ Informe quantas unidades essa receita rendeu.
+        </small>
 
-        <h4 style="grid-column: span 2; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px; margin-top: 10px;">
-            2. Formação de Preço (Unitário)
+
+        <h4 class="titulo_secao_form" style="margin-top: 25px;">
+            2. Formação de Preço ({{ unidade_produto === 'KG' ? 'Por Kg' : 'Unitário' }})
         </h4>
 
-        <div class="grupo">
-            <label>Margem de Lucro Desejada (%)</label>
-            <input type="number" v-model="margem_lucro" class="input_padrao">
-        </div>
-
-        <div class="grupo">
-            <label>Imposto na Venda (%)</label>
-            <input type="number" v-model="imposto_venda" class="input_padrao" placeholder="Ex: 4.5">
-        </div>
-
-        <div class="grupo destaque">
-            <label>Preço Sugerido (Calc.)</label>
-            <div class="preco_sugerido">R$ {{ preco_sugerido }}</div>
-            <div class="detalhe_imposto" v-if="valor_imposto_estimado > 0">
-                (Imposto est.: R$ {{ valor_imposto_estimado }})
+        <div class="linha_tripla">
+            
+            <div class="grupo">
+                <label>Margem Lucro (%)</label>
+                <input type="number" v-model="margem_lucro" class="input_padrao">
             </div>
-        </div>
 
-        <div class="grupo">
-            <label>Preço de Venda REAL</label>
-            <input type="number" step="0.01" v-model="preco_venda_real" class="input_padrao input_real">
+            <div class="grupo">
+                <label>Imposto Venda (%)</label>
+                <input type="number" v-model="imposto_venda" class="input_padrao" placeholder="0">
+            </div>
+
+            <div class="grupo">
+                <label style="color: #10b981; font-weight: bold;">
+                    Preço Venda REAL (R$)
+                </label>
+                
+                <input 
+                    type="number" 
+                    step="0.01" 
+                    v-model="preco_venda_real" 
+                    class="input_padrao input_real" 
+                    :placeholder="`Sug: R$ ${preco_sugerido}`"
+                >
+                
+                <div class="texto_apoio_sugerido">
+                    Sugerido: <strong>R$ {{ preco_sugerido }}</strong>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <button class="botao_salvar" @click="salvar_ficha_produto">💾 Salvar Ficha e Atualizar Estoque</button>
+    <button class="botao_salvar" @click="emitir_salvamento">
+        💾 Salvar Ficha e Atualizar Estoque
+    </button>
   </div>
 </template>
 
@@ -72,19 +118,20 @@ import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 
 const props = defineProps(['produto_id', 'custo_ingredientes', 'custo_operacional']);
+const emit = defineEmits(['salvar-completo']);
 
 const margem_lucro = ref(100); 
-const imposto_venda = ref(0); // Ex: 10%
-const preco_venda_real = ref(0);
-const rendimento = ref(1); // Padrão 1 para não dividir por zero
+const imposto_venda = ref(0); 
+const preco_venda_real = ref(''); 
+const rendimento = ref(1); 
+const unidade_produto = ref('UN'); // Estado para guardar a unidade (KG, UN, CX)
 
-// Carregar dados atuais do produto (Rendimento salvo anteriormente)
+// Carregar dados salvos do produto
 const carregar_dados_produto = async () => {
     if (!props.produto_id) return;
     const lojaId = localStorage.getItem('loja_ativa_id');
     
     try {
-        // Precisamos buscar o produto específico para pegar o 'rendimento' salvo no banco
         const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
@@ -92,80 +139,66 @@ const carregar_dados_produto = async () => {
         
         const produto = res.data.find(p => p.id === props.produto_id);
         if (produto) {
+            // CAPTURA A UNIDADE PARA AJUSTAR O VISUAL
+            unidade_produto.value = produto.unidade_medida || 'UN';
+
             rendimento.value = parseFloat(produto.rendimento) || 1;
-            preco_venda_real.value = parseFloat(produto.preco_venda) || 0;
-            // Se tivesse campos margem/imposto no banco, carregaria aqui também
+            const precoBanco = parseFloat(produto.preco_venda);
+            preco_venda_real.value = precoBanco > 0 ? precoBanco : ''; 
+            
+            margem_lucro.value = parseFloat(produto.margem_lucro) || 100;
+            imposto_venda.value = parseFloat(produto.imposto_venda) || 0;
         }
     } catch (e) { console.error(e); }
 };
 
-// Monitora mudança de produto para recarregar rendimento
 watch(() => props.produto_id, carregar_dados_produto);
 onMounted(carregar_dados_produto);
 
-// 1. Custo Total da Receita
+// Cálculos
 const custo_total_receita = computed(() => props.custo_ingredientes + props.custo_operacional);
 
-// 2. Custo Unitário (Base para o preço)
 const custo_unitario = computed(() => {
     const r = parseFloat(rendimento.value);
     if (!r || r <= 0) return "0.00";
     return (custo_total_receita.value / r).toFixed(2);
 });
 
-// 3. Cálculos de Preço
-const preco_base_com_margem = computed(() => {
-    const custo = parseFloat(custo_unitario.value);
-    return custo * (1 + (margem_lucro.value / 100));
-});
-
 const preco_sugerido = computed(() => {
-    const base = preco_base_com_margem.value;
+    const custo = parseFloat(custo_unitario.value);
+    if (custo === 0) return "0.00";
+
+    const base_com_lucro = custo * (1 + (margem_lucro.value / 100));
     const divisor_imposto = 1 - (imposto_venda.value / 100);
-    if (divisor_imposto <= 0) return "Erro";
-    return (base / divisor_imposto).toFixed(2);
+    
+    if (divisor_imposto <= 0) return "Erro"; 
+
+    return (base_com_lucro / divisor_imposto).toFixed(2);
 });
 
-const valor_imposto_estimado = computed(() => {
-    const preco = parseFloat(preco_sugerido.value);
-    if (isNaN(preco)) return "0.00";
-    return (preco * (imposto_venda.value / 100)).toFixed(2);
-});
-
-// Ação de Salvar
-const salvar_ficha_produto = async () => {
+// AÇÃO: Emite os dados para o pai salvar a ficha completa
+const emitir_salvamento = () => {
     if (!props.produto_id) return alert('Selecione um produto!');
-    if (preco_venda_real.value <= 0) return alert('Defina um preço de venda real!');
-    if (rendimento.value <= 0) return alert('O rendimento deve ser maior que 0!');
-
-    const lojaId = localStorage.getItem('loja_ativa_id');
-
-    try {
-        await axios.put(`http://127.0.0.1:8000/api/produtos/${props.produto_id}`, {
-            loja_id: lojaId,
-            
-            // Dados Globais do Produto
-            tipo_item: 'INTERNO',
-            rendimento: rendimento.value, // Salva o rendimento na tabela produtos
-            
-            // Dados de Estoque (Valores Unitários)
-            preco_custo: custo_unitario.value, // Salva o custo UNITÁRIO calculado
-            preco_venda: preco_venda_real.value, // Salva o preço de venda definido
-            
-        }, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
-
-        alert(`Sucesso!\n\nEstoque Atualizado:\nCusto Unitário: R$ ${custo_unitario.value}\nVenda Unitária: R$ ${preco_venda_real.value}`);
-        
-    } catch (e) {
-        console.error(e);
-        alert('Erro ao salvar.');
+    
+    if (!preco_venda_real.value || preco_venda_real.value <= 0) {
+        return alert('Defina um preço de venda real!');
     }
+    if (rendimento.value <= 0) {
+        return alert('O rendimento deve ser maior que 0!');
+    }
+
+    emit('salvar-completo', {
+        rendimento: rendimento.value,
+        preco_custo: custo_unitario.value,
+        preco_venda: preco_venda_real.value,
+        margem_lucro: margem_lucro.value,
+        imposto_venda: imposto_venda.value
+    });
 };
 </script>
 
 <style scoped>
+/* ESTILOS (Mantidos iguais, focando na usabilidade) */
 .titulo_sub { color: var(--primary-color); margin-bottom: 20px; }
 .grid_resumo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 30px; }
 .card_resumo { background: var(--bg-page); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; text-align: center; }
@@ -174,21 +207,31 @@ const salvar_ficha_produto = async () => {
 .card_resumo.total { border-color: var(--primary-color); background: rgba(59, 130, 246, 0.1); }
 .card_resumo.total strong { color: var(--primary-color); }
 
-.form_preco { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: var(--bg-page); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; }
-.grupo label { display: block; color: var(--text-secondary); margin-bottom: 5px; font-size: 14px; }
-.input_padrao { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; font-size: 16px; }
+.form_preco { background: var(--bg-page); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+.titulo_secao_form { color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; font-size: 15px; }
 
-/* Estilos Específicos */
-.destaque_rendimento { border-color: var(--primary-color); color: var(--primary-color); font-weight: bold; width: 150px !important; }
-.card_unitario { background: var(--bg-card); border: 2px solid #10b981; padding: 10px 20px; border-radius: 6px; display: flex; flex-direction: column; align-items: center; margin-left: auto; }
-.card_unitario span { font-size: 11px; color: #10b981; font-weight: bold; text-transform: uppercase; }
-.card_unitario strong { font-size: 18px; color: var(--text-primary); }
+/* LINHA EQUAÇÃO */
+.linha_equacao { display: flex; align-items: flex-end; gap: 10px; justify-content: flex-start; }
+.grupo_eq { display: flex; flex-direction: column; }
+.grupo_eq label { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; font-weight: 600; }
+.operador { font-size: 24px; color: var(--text-secondary); font-weight: bold; padding-bottom: 5px; }
 
-.preco_sugerido { font-size: 24px; font-weight: bold; color: #fbbf24; padding: 5px 0; }
-.detalhe_imposto { font-size: 12px; color: var(--text-secondary); font-style: italic; }
-.input_real { border-color: #10b981; color: #10b981; font-weight: bold; font-size: 20px; }
-.ajuda { font-size: 11px; color: var(--text-secondary); margin-top: 5px; display: block; }
+.valor_estatico { padding: 10px 15px; background: var(--border-color); border-radius: 6px; font-weight: bold; color: var(--text-secondary); min-width: 100px; text-align: center; }
+.valor_resultado { padding: 10px 15px; background: #ecfdf5; border: 2px solid #10b981; border-radius: 6px; font-weight: bold; color: #047857; min-width: 120px; text-align: center; }
 
-.botao_salvar { width: 100%; background: var(--primary-color); color: white; border: none; padding: 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; }
+.input_padrao { width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; font-size: 16px; }
+.input_padrao.centro { text-align: center; font-weight: bold; width: 140px; }
+.ajuda_centro { display: block; text-align: left; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+
+/* LINHA TRIPLA */
+.linha_tripla { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.grupo label { display: block; color: var(--text-secondary); margin-bottom: 5px; font-size: 13px; }
+
+.input_real { border: 2px solid #10b981; color: #10b981; font-weight: bold; font-size: 18px; }
+.input_real::placeholder { color: #9ca3af; font-weight: normal; font-size: 14px; }
+
+.texto_apoio_sugerido { font-size: 11px; color: var(--text-secondary); margin-top: 4px; text-align: right; }
+
+.botao_salvar { width: 100%; background: var(--primary-color); color: white; border: none; padding: 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; transition: opacity 0.2s; }
 .botao_salvar:hover { opacity: 0.9; }
 </style>

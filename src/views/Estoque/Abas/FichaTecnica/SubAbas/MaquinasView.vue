@@ -3,31 +3,31 @@
     <div class="topo_maquinas">
         <div>
             <h3 class="titulo_sub">Máquinas e Mão de Obra</h3>
-            <p class="desc">Adicione o tempo de uso dos equipamentos para calcular o custo operacional.</p>
+            <p class="desc">Cadastre "Mão de Obra" como um equipamento (Tipo: Manual) para calcular o tempo humano.</p>
         </div>
         <div class="botoes_topo">
             <button class="btn_secundario" @click="modal_tarifas_aberto = true">⚙️ Tarifas</button>
-            <button class="btn_primario" @click="abrir_modal_equipamento">➕ Novo Equipamento</button>
+            <button class="btn_primario" @click="abrir_modal_equipamento">➕ Novo Recurso</button>
         </div>
     </div>
     
     <div class="box_calculo">
-        <h4 style="color:var(--text-primary); margin-bottom:10px;">Adicionar Tempo de Máquina</h4>
+        <h4 style="color:var(--text-primary); margin-bottom:10px;">Adicionar Recurso à Receita</h4>
         
         <div class="linha_calc">
             <div class="grupo_input" style="flex: 2;">
-                <label>Equipamento (Cadastrado)</label>
+                <label>Recurso (Máquina ou Profissional)</label>
                 <select v-model="uso_temp.equipamento_id" class="input_padrao" @change="selecionar_maquina">
                     <option value="" disabled>Selecione...</option>
                     <option v-for="eq in lista_equipamentos_db" :key="eq.id" :value="eq.id">
-                        {{ eq.nome }} ({{ eq.tipo_energia }})
+                        {{ eq.nome }} ({{ formatar_tipo(eq.tipo_energia) }})
                     </option>
                 </select>
             </div>
             
             <div class="grupo_input" style="flex: 1;">
                 <label>Tempo (Minutos)</label>
-                <input type="number" v-model="uso_temp.minutos" class="input_padrao" placeholder="Ex: 40">
+                <input type="number" v-model="uso_temp.minutos" class="input_padrao" placeholder="Ex: 20">
             </div>
 
             <div class="grupo_input" style="flex: 1;">
@@ -45,8 +45,9 @@
         <div class="cabecalho_tabela_maq">
             <span>ID</span>
             <span>Recurso</span>
-            <span>Potência</span> <span>Tempo</span>
-            <span>Custo Energia/Gás</span>
+            <span>Detalhe</span>
+            <span>Tempo</span>
+            <span>Custo Operacional</span>
             <span>Depreciação</span>
             <span>Total</span>
             <span>Ação</span>
@@ -56,26 +57,28 @@
             <span style="font-weight:bold; color:var(--primary-color);">#{{ item.id }}</span>
             <span>{{ item.nome }}</span>
             
-            <span v-if="item.potencia_watts">{{ item.potencia_watts }} W</span>
-            <span v-else-if="item.consumo_gas">{{ item.consumo_gas }} kg/h</span>
+            <span v-if="item.tipo_energia === 'MANUAL'" class="badge_manual">Mão de Obra</span>
+            <span v-else-if="item.tipo_energia === 'ELETRICO'">{{ item.potencia_watts }} W</span>
+            <span v-else-if="item.tipo_energia === 'GAS'">{{ parseFloat(item.consumo_gas || item.consumo_gas_kg_h).toFixed(3) }} kg/h</span>
             <span v-else>---</span>
 
             <span>{{ item.minutos }} min</span>
+            
             <span>R$ {{ item.custo_energia.toFixed(2) }}</span>
             <span>R$ {{ item.custo_depreciacao.toFixed(2) }}</span>
             <strong style="color: #10b981;">R$ {{ item.total.toFixed(2) }}</strong>
-            <button class="btn_del" @click="remover_uso(index)">🗑️</button>
+            <button class="btn_del" @click="remover_item(index)">🗑️</button>
         </div>
 
         <div v-if="lista.length === 0" class="aviso_tabela">
-            Nenhum equipamento adicionado a esta receita.
+            Nenhum recurso adicionado.
         </div>
     </div>
 
     <div v-if="modal_tarifas_aberto" class="modal_overlay">
         <div class="modal_content">
             <h3>Configurar Tarifas Locais</h3>
-            <p class="desc">Esses valores são usados para calcular o custo hora.</p>
+            <p class="desc">Ao salvar, os custos serão recalculados.</p>
             
             <div class="grupo_input">
                 <label>Energia Elétrica (R$ / kWh)</label>
@@ -85,32 +88,34 @@
                 <label>Gás (R$ / kg)</label>
                 <input type="number" step="0.01" v-model="tarifas.gas" class="input_padrao">
             </div>
-            <div class="grupo_input">
+            <div class="grupo_input destaque_mo">
                 <label>Mão de Obra (R$ / hora)</label>
                 <input type="number" step="0.01" v-model="tarifas.mao_obra" class="input_padrao">
             </div>
             
             <div class="modal_actions">
-                <button @click="modal_tarifas_aberto = false" class="btn_primario">OK</button>
+                <button @click="modal_tarifas_aberto = false" class="btn_secundario">Cancelar</button>
+                <button @click="salvar_tarifas_e_recalcular" class="btn_primario">💾 Salvar e Recalcular</button>
             </div>
         </div>
     </div>
 
     <div v-if="modal_equipamento_aberto" class="modal_overlay">
         <div class="modal_content grande">
-            <h3>Cadastrar Novo Equipamento</h3>
+            <h3>Cadastrar Novo Recurso</h3>
             
             <div class="grupo_input">
-                <label>Nome do Equipamento</label>
-                <input type="text" v-model="novo_eq.nome" class="input_padrao" placeholder="Ex: Forno Turbo">
+                <label>Nome (Ex: Forno ou Padeiro)</label>
+                <input type="text" v-model="novo_eq.nome" class="input_padrao" placeholder="Nome...">
             </div>
             
             <div class="linha_dupla">
                 <div class="grupo_input">
-                    <label>Tipo de Energia</label>
+                    <label>Tipo de Recurso</label>
                     <select v-model="novo_eq.tipo_energia" class="input_padrao">
-                        <option value="ELETRICO">Elétrico</option>
-                        <option value="GAS">Gás</option>
+                        <option value="ELETRICO">Máquina Elétrica</option>
+                        <option value="GAS">Máquina a Gás</option>
+                        <option value="MANUAL">Mão de Obra (Humano)</option>
                     </select>
                 </div>
                 
@@ -120,20 +125,24 @@
                 </div>
                 <div class="grupo_input" v-if="novo_eq.tipo_energia === 'GAS'">
                     <label>Consumo Gás (kg/h)</label>
-                    <input type="number" step="0.001" v-model="novo_eq.consumo_gas_kg_h" class="input_padrao">
+                    <input type="number" step="0.001" v-model="novo_eq.consumo_gas_kg_h" class="input_padrao" placeholder="Ex: 1.200">
+                </div>
+                 <div class="grupo_input" v-if="novo_eq.tipo_energia === 'MANUAL'">
+                    <label>Info</label>
+                    <div class="aviso_manual">Usa a tarifa de Mão de Obra configurada.</div>
                 </div>
             </div>
 
-            <hr class="divisor">
-            <h4>Cálculo de Depreciação</h4>
+            <hr class="divisor" v-if="novo_eq.tipo_energia !== 'MANUAL'">
+            <h4 v-if="novo_eq.tipo_energia !== 'MANUAL'">Cálculo de Depreciação</h4>
             
-            <div class="linha_tripla">
+            <div class="linha_tripla" v-if="novo_eq.tipo_energia !== 'MANUAL'">
                 <div class="grupo_input">
                     <label>Valor Compra (R$)</label>
                     <input type="number" v-model="novo_eq.valor_aquisicao" class="input_padrao">
                 </div>
                 <div class="grupo_input">
-                    <label>Valor Residual (Final)</label>
+                    <label>Valor Residual</label>
                     <input type="number" v-model="novo_eq.valor_residual" class="input_padrao">
                 </div>
                 <div class="grupo_input">
@@ -142,7 +151,7 @@
                 </div>
             </div>
 
-            <div class="box_resultado_depreciacao">
+            <div class="box_resultado_depreciacao" v-if="novo_eq.tipo_energia !== 'MANUAL'">
                 Depreciação Mensal: <strong>R$ {{ calc_deprec_mensal }}</strong>
             </div>
 
@@ -157,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 
 const props = defineProps(['lista']);
@@ -166,49 +175,48 @@ const emit = defineEmits(['atualizar-total']);
 const lista_equipamentos_db = ref([]);
 const modal_tarifas_aberto = ref(false);
 const modal_equipamento_aberto = ref(false);
-const tarifas = ref({ energia: 0.95, gas: 9.50, mao_obra: 15.00 });
+const tarifas = ref({ energia: 0.95, gas: 9.50, mao_obra: 15.00 }); 
 
 const novo_eq = ref({ nome: '', tipo_energia: 'ELETRICO', potencia_watts: 0, consumo_gas_kg_h: 0, valor_aquisicao: 0, valor_residual: 0, vida_util_anos: 10 });
 const uso_temp = ref({ equipamento_id: '', minutos: 0, dados_maquina: null });
 
-// BUSCAR COM FILTRO DE LOJA
+const formatar_tipo = (tipo) => {
+    const map = { 'ELETRICO': 'Elétrico', 'GAS': 'Gás', 'MANUAL': 'Mão de Obra' };
+    return map[tipo] || tipo;
+};
+
 const buscar_equipamentos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id'); 
     try {
         const res = await axios.get('http://127.0.0.1:8000/api/equipamentos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
-            params: { loja_id: lojaId } // FILTRO APLICADO
+            params: { loja_id: lojaId } 
         });
         lista_equipamentos_db.value = res.data;
-    } catch (e) {
-        console.error("Erro ao buscar equipamentos:", e);
-    }
+    } catch (e) { console.error(e); }
 };
 
 const salvar_no_banco = async () => {
-    if(!novo_eq.value.nome) return alert("Digite o nome do equipamento.");
+    if(!novo_eq.value.nome) return alert("Digite o nome.");
     const lojaId = localStorage.getItem('loja_ativa_id');
-
     const payload = {
         ...novo_eq.value,
-        loja_id: lojaId, // SALVAR COM FILIAL
+        loja_id: lojaId, 
         depreciacao_mensal: parseFloat(calc_deprec_mensal.value)
     };
-
     try {
         await axios.post('http://127.0.0.1:8000/api/equipamentos', payload, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
-        alert('Equipamento Salvo com Sucesso!');
+        alert('Salvo com Sucesso!');
         modal_equipamento_aberto.value = false;
         novo_eq.value = { nome: '', tipo_energia: 'ELETRICO', potencia_watts: 0, consumo_gas_kg_h: 0, valor_aquisicao: 0, valor_residual: 0, vida_util_anos: 10 };
         buscar_equipamentos();
-    } catch (e) {
-        alert("Erro ao salvar: " + (e.response?.data?.message || e.message));
-    }
+    } catch (e) { alert("Erro: " + (e.response?.data?.message || e.message)); }
 };
 
 const calc_deprec_mensal = computed(() => {
+    if (novo_eq.value.tipo_energia === 'MANUAL') return "0.00";
     const v_compra = parseFloat(novo_eq.value.valor_aquisicao) || 0;
     const v_resid = parseFloat(novo_eq.value.valor_residual) || 0;
     const anos = parseFloat(novo_eq.value.vida_util_anos) || 1;
@@ -221,6 +229,42 @@ const selecionar_maquina = () => {
     uso_temp.value.dados_maquina = maquina;
 };
 
+// LÓGICA DE CÁLCULO
+const calcular_custos = (maquina, minutos) => {
+    const horas = minutos / 60;
+    let custo_operacional = 0; 
+    let custo_depreciacao = 0;
+
+    if (maquina.tipo_energia === 'MANUAL') {
+        custo_operacional = horas * tarifas.value.mao_obra;
+    } 
+    else if (maquina.tipo_energia === 'ELETRICO') {
+        const kwh = (maquina.potencia_watts / 1000) * horas;
+        custo_operacional = kwh * tarifas.value.energia;
+    } 
+    else if (maquina.tipo_energia === 'GAS') {
+        // CORREÇÃO: Garante que pega o campo certo e trata valor nulo
+        // Se vier do banco é 'consumo_gas', se vier do form é 'consumo_gas_kg_h'
+        const consumo = parseFloat(maquina.consumo_gas || maquina.consumo_gas_kg_h || 0);
+        const kg_gas = consumo * horas;
+        custo_operacional = kg_gas * tarifas.value.gas;
+    }
+
+    if (maquina.tipo_energia !== 'MANUAL') {
+        if (maquina.depreciacao_hora) {
+            custo_depreciacao = parseFloat(maquina.depreciacao_hora) * horas;
+        } else {
+            const v_compra = parseFloat(maquina.valor_aquisicao) || 0;
+            const v_resid = parseFloat(maquina.valor_residual) || 0;
+            const anos = parseFloat(maquina.vida_util_anos) || 10;
+            const mensal = ((v_compra - v_resid) / anos) / 12;
+            custo_depreciacao = (mensal / 220) * horas;
+        }
+    }
+
+    return { custo_energia: custo_operacional, custo_depreciacao };
+};
+
 const custo_uso_preview = computed(() => {
     const maquina = uso_temp.value.dados_maquina;
     const minutos = parseFloat(uso_temp.value.minutos) || 0;
@@ -229,55 +273,34 @@ const custo_uso_preview = computed(() => {
     return (custo_energia + custo_depreciacao).toFixed(2);
 });
 
-const calcular_custos = (maquina, minutos) => {
-    const horas = minutos / 60;
-    let custo_energia = 0;
-
-    if (maquina.tipo_energia === 'ELETRICO') {
-        const kwh = (maquina.potencia_watts / 1000) * horas;
-        custo_energia = kwh * tarifas.value.energia;
-    } else {
-        const kg_gas = maquina.consumo_gas_kg_h * horas;
-        custo_energia = kg_gas * tarifas.value.gas;
-    }
-
-    let custo_depreciacao = 0;
-    if (maquina.depreciacao_hora) {
-        custo_depreciacao = parseFloat(maquina.depreciacao_hora) * horas;
-    } else {
-        const v_compra = parseFloat(maquina.valor_aquisicao) || 0;
-        const v_resid = parseFloat(maquina.valor_residual) || 0;
-        const anos = parseFloat(maquina.vida_util_anos) || 10;
-        const mensal = ((v_compra - v_resid) / anos) / 12;
-        custo_depreciacao = (mensal / 220) * horas;
-    }
-
-    return { custo_energia, custo_depreciacao };
-};
-
 const adicionar_uso = () => {
     const maquina = uso_temp.value.dados_maquina;
     const minutos = parseFloat(uso_temp.value.minutos);
     const { custo_energia, custo_depreciacao } = calcular_custos(maquina, minutos);
-    const total_item = custo_energia + custo_depreciacao;
-
+    
     props.lista.push({
         id: maquina.id,
         nome: maquina.nome,
-        // DADOS SALVOS PARA EXIBIÇÃO
+        tipo_energia: maquina.tipo_energia, 
         potencia_watts: maquina.potencia_watts, 
-        consumo_gas: maquina.consumo_gas_kg_h,
+        consumo_gas: maquina.consumo_gas || maquina.consumo_gas_kg_h, // Salva o valor correto
+        consumo_gas_kg_h: maquina.consumo_gas || maquina.consumo_gas_kg_h, // Fallback
+        depreciacao_hora: maquina.depreciacao_hora,
+        valor_aquisicao: maquina.valor_aquisicao,
+        valor_residual: maquina.valor_residual,
+        vida_util_anos: maquina.vida_util_anos,
+        
         minutos: minutos,
         custo_energia: custo_energia,
         custo_depreciacao: custo_depreciacao,
-        total: total_item
+        total: custo_energia + custo_depreciacao
     });
 
     recalcular_total_geral();
     uso_temp.value.minutos = 0;
 };
 
-const remover_uso = (index) => {
+const remover_item = (index) => {
     props.lista.splice(index, 1);
     recalcular_total_geral();
 };
@@ -287,48 +310,71 @@ const recalcular_total_geral = () => {
     emit('atualizar-total', total);
 };
 
-const abrir_modal_equipamento = () => {
-    modal_equipamento_aberto.value = true;
+const salvar_tarifas_e_recalcular = () => {
+    modal_tarifas_aberto.value = false;
+    if (!props.lista || props.lista.length === 0) return;
+
+    props.lista.forEach(item => {
+        const maquinaTemp = { ...item }; // Clona para recalcular
+        const { custo_energia, custo_depreciacao } = calcular_custos(maquinaTemp, item.minutos);
+        item.custo_energia = custo_energia;
+        item.custo_depreciacao = custo_depreciacao;
+        item.total = custo_energia + custo_depreciacao;
+    });
+
+    recalcular_total_geral();
+    alert('Recalculado!');
 };
+
+const recalcular_custos_lista_carregada = () => {
+    if (!props.lista || props.lista.length === 0) return;
+    props.lista.forEach(item => {
+        if (item.total === 0 && item.minutos > 0) {
+             const maquinaTemp = { ...item };
+            const { custo_energia, custo_depreciacao } = calcular_custos(maquinaTemp, item.minutos);
+            item.custo_energia = custo_energia;
+            item.custo_depreciacao = custo_depreciacao;
+            item.total = custo_energia + custo_depreciacao;
+        }
+    });
+    recalcular_total_geral();
+};
+
+watch(() => props.lista, recalcular_custos_lista_carregada, { deep: true, immediate: true });
+
+const abrir_modal_equipamento = () => { modal_equipamento_aberto.value = true; };
 
 onMounted(buscar_equipamentos);
 </script>
 
 <style scoped>
+.badge_manual { background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; border: 1px solid #bae6fd; }
+.destaque_mo { background: #fffbeb; border: 1px solid #fcd34d; padding: 10px; border-radius: 6px; }
+.destaque_mo label { color: #b45309; font-weight: bold; }
+.aviso_manual { color: var(--text-secondary); font-size: 12px; padding: 10px; background: var(--hover-bg); border-radius: 6px; }
+
 .topo_maquinas { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .botoes_topo { display: flex; gap: 10px; }
 .titulo_sub { color: var(--primary-color); margin: 0; }
 .desc { color: var(--text-secondary); font-size: 13px; margin: 0; }
-
 .btn_primario { background: var(--primary-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .btn_secundario { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 15px; border-radius: 6px; cursor: pointer; }
-
 .box_calculo { background: var(--bg-page); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; }
 .linha_calc { display: flex; gap: 15px; align-items: flex-end; }
 .display_valor { padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); color: #10b981; border-radius: 6px; font-weight: bold; min-width: 100px; text-align: center; }
-
 .botao_add { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; height: 42px; font-weight: bold; }
 .botao_add:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Tabela Expandida */
 .tabela_simples { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
-.cabecalho_tabela_maq, .linha_tabela_maq { 
-    display: grid; 
-    grid-template-columns: 0.5fr 2fr 1fr 1fr 1fr 1fr 1fr 0.5fr; 
-    padding: 10px; gap: 10px;
-}
+.cabecalho_tabela_maq, .linha_tabela_maq { display: grid; grid-template-columns: 0.5fr 2fr 1fr 1fr 1fr 1fr 1fr 0.5fr; padding: 10px; gap: 10px; }
 .cabecalho_tabela_maq { background: var(--bg-page); font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); font-size: 12px; }
 .linha_tabela_maq { border-bottom: 1px solid var(--border-color); color: var(--text-primary); align-items: center; font-size: 13px; }
-
 .aviso_tabela { padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic; }
 .btn_del { background: none; border: none; cursor: pointer; filter: grayscale(1); }
 .btn_del:hover { filter: none; }
-
 .modal_overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
 .modal_content { background: var(--bg-card); padding: 25px; border-radius: 12px; width: 400px; border: 1px solid var(--border-color); color: var(--text-primary); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
 .modal_content.grande { width: 600px; }
 .modal_actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-
 .linha_dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
 .linha_tripla { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
 .grupo_input { margin-bottom: 10px; }
