@@ -1,7 +1,6 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-// Importando ícones da biblioteca Lucide
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -10,14 +9,15 @@ import {
   Recycle, 
   LogOut, 
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  Moon,
+  Sun,
+  Store
 } from 'lucide-vue-next';
 
 const router = useRouter();
-
-// Estado para controlar se o menu está expandido ou recolhido
-// Variável em Snake Case (padrão JS definido por você)
 const menu_expandido = ref(true);
+const modo_escuro = ref(false); // Estado do tema
 
 function alternar_menu() {
     menu_expandido.value = !menu_expandido.value;
@@ -27,10 +27,24 @@ function fazer_logout() {
     localStorage.removeItem('token_erp');
     router.push('/');
 }
+
+// --- Lógica do Tema ---
+function alternar_tema() {
+    modo_escuro.value = !modo_escuro.value;
+    localStorage.setItem('tema_erp', modo_escuro.value ? 'dark' : 'light');
+}
+
+onMounted(() => {
+    // Recupera tema salvo
+    const tema_salvo = localStorage.getItem('tema_erp');
+    if (tema_salvo === 'dark') {
+        modo_escuro.value = true;
+    }
+});
 </script>
 
 <template>
-  <div class="container_sistema">
+  <div :class="['container_sistema', { 'dark_mode': modo_escuro }]">
     
     <aside :class="['menu_lateral', { 'recolhido': !menu_expandido }]">
       
@@ -45,12 +59,16 @@ function fazer_logout() {
       </div>
 
       <nav class="navegacao">
-        
         <RouterLink to="/dashboard" class="item_menu" active-class="ativo">
             <LayoutDashboard size="22" />
             <span class="texto_link" v-show="menu_expandido">Dashboard</span>
-            </RouterLink>
+        </RouterLink>
         
+        <RouterLink to="/meu-negocio" class="item_menu" active-class="ativo">
+            <Store size="22" />
+            <span class="texto_link" v-show="menu_expandido">Meu Negócio</span>
+        </RouterLink>
+
         <RouterLink to="/frente-de-caixa" class="item_menu" active-class="ativo">
             <ShoppingCart size="22" />
             <span class="texto_link" v-show="menu_expandido">Caixa (PDV)</span>
@@ -70,7 +88,6 @@ function fazer_logout() {
             <Recycle size="22" />
             <span class="texto_link" v-show="menu_expandido">Sobras</span>
         </RouterLink>
-
       </nav>
 
       <div class="rodape_menu">
@@ -79,13 +96,18 @@ function fazer_logout() {
             <span v-show="menu_expandido">Sair</span>
         </button>
       </div>
-
     </aside>
 
     <main class="conteudo_principal">
         <header class="barra_topo">
             <h2 class="titulo_secao">Bem-vindo</h2>
+            
             <div class="usuario_info">
+                <button @click="alternar_tema" class="botao_tema" title="Alternar Tema">
+                    <Moon v-if="!modo_escuro" size="20" />
+                    <Sun v-else size="20" />
+                </button>
+
                 <div class="avatar_usuario">A</div>
             </div>
         </header>
@@ -102,198 +124,206 @@ function fazer_logout() {
   </div>
 </template>
 
-<style scoped>
-/* Variáveis de cor para facilitar ajustes */
+<style>
+/* =========================================
+   DEFINIÇÕES GLOBAIS DE TEMA (CSS VARIABLES)
+   ========================================= */
 :root {
-    --cor-menu-bg: #1e293b;
-    --cor-menu-hover: #334155;
-    --cor-destaque: #3b82f6;
-    --cor-texto: #e2e8f0;
+    /* -- MODO CLARO (Padrão) -- */
+    --bg-page: #f1f5f9;      
+    --bg-card: #ffffff;      
+    --text-primary: #1e293b; 
+    --text-secondary: #64748b; 
+    --border-color: #e2e8f0; 
+    --input-bg: #ffffff;     
+    --primary-color: #3b82f6; 
+    --hover-bg: #f8fafc;
+
+    /* Cores de Status (Validade/Alertas) - Light */
+    --status-ok-bg: #f0fdf4;
+    --status-ok-text: #15803d;
+    --status-warning-bg: #fef9c3;
+    --status-warning-text: #a16207;
+    --status-danger-bg: #fee2e2;
+    --status-danger-text: #991b1b;
+    
+    /* Destaques (Vitrine/Balança) - Light */
+    --highlight-bg: #fffbeb;
+    --highlight-text: #d97706;
+    --highlight-border: #fcd34d;
 }
 
+/* -- MODO ESCURO -- */
+.dark_mode {
+    --bg-page: #0f172a;      /* Slate 900 */
+    --bg-card: #1e293b;      /* Slate 800 */
+    --text-primary: #f1f5f9; /* Branco suave */
+    --text-secondary: #94a3b8; /* Cinza claro */
+    --border-color: #334155; /* Borda escura */
+    --input-bg: #0f172a;     /* Input bem escuro */
+    --primary-color: #60a5fa; /* Azul claro */
+    --hover-bg: #334155;
+
+    /* PALETA "ICE WHITE" COM TRANSPARÊNCIA
+       Usamos rgba() para criar o efeito translúcido (vidro)
+    */
+    
+    /* Fundo Base: Branco com 10% de opacidade */
+    --transparent-white-bg: rgba(255, 255, 255, 0.1); 
+
+    /* Status OK (Verde Escuro no Fundo Transparente) */
+    --status-ok-bg: var(--transparent-white-bg);      
+    --status-ok-text: #86efac;    
+
+    /* Status Atenção (Amarelo Escuro no Fundo Transparente) */
+    --status-warning-bg: var(--transparent-white-bg); 
+    --status-warning-text: #fde047;
+
+    /* Status Crítico (Vermelho Escuro no Fundo Transparente) */
+    --status-danger-bg: var(--transparent-white-bg);  
+    --status-danger-text: #fca5a5;
+
+    /* Destaques (Balança/Vitrine) - Transparente */
+    --highlight-bg: rgba(255, 255, 255, 0.08); /* Ainda mais sutil (8%) */
+    --highlight-text: #fcd34d;    /* Dourado legível */
+    --highlight-border: rgba(255, 255, 255, 0.2); /* Borda sutil */
+}
+
+/* =========================================
+   FORÇAR ESTILOS GLOBAIS
+   ========================================= */
+
+/* Inputs Globais */
+input, select, textarea {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Tabelas Globais (Adaptação Dark Mode) */
+.dark_mode table th {
+    background-color: var(--bg-card);
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-color);
+}
+.dark_mode table td {
+    border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Etiquetas de Validade (Classes Globais) */
+.status_ok      { background-color: var(--status-ok-bg) !important; color: var(--status-ok-text) !important; font-weight: 700 !important; }
+.status_proximo { background-color: var(--status-warning-bg) !important; color: var(--status-warning-text) !important; font-weight: 700 !important; }
+.status_atencao { background-color: var(--status-warning-bg) !important; color: var(--status-warning-text) !important; border: 1px solid var(--status-warning-text) !important; font-weight: 700 !important; }
+.status_critico, 
+.status_vencido { background-color: var(--status-danger-bg) !important; color: var(--status-danger-text) !important; font-weight: 700 !important; }
+
+/* Destaques (Vitrine / Balança) */
+.coluna_vitrine_ativa, 
+.texto_balanca, 
+.destaque_vitrine,
+.destaque_balanca {
+    background-color: var(--highlight-bg) !important;
+    color: var(--highlight-text) !important;
+    border-color: var(--highlight-border) !important;
+    font-weight: 700;
+}
+
+/* Cards de Edição e Avisos */
+.dark_mode .box_edicao_expandida,
+.dark_mode .modo_edicao {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dark_mode .box_aviso_producao {
+    background-color: #172554 !important; /* Azul muito escuro */
+    border-color: #1e3a8a !important;
+    color: #dbeafe !important;
+}
+</style>
+
+<style scoped>
+/* (Estrutura do layout mantém-se original) */
 .container_sistema {
   display: flex;
   height: 100vh;
-  font-family: 'Inter', sans-serif; /* Fonte mais moderna se disponível, ou padrão */
-  background-color: #f1f5f9;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
   overflow: hidden;
 }
 
-/* --- Menu Lateral --- */
 .menu_lateral {
   width: 260px;
-  background-color: #1e293b; /* Slate 800 */
+  background-color: #1e293b; 
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease-in-out; /* A mágica da transição suave */
-  box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+  transition: width 0.3s ease-in-out;
   z-index: 10;
 }
+.menu_lateral.recolhido { width: 80px; }
 
-/* Estado Recolhido */
-.menu_lateral.recolhido {
-    width: 80px;
-}
-
-/* Itens internos centralizados quando recolhido */
-.menu_lateral.recolhido .item_menu,
-.menu_lateral.recolhido .botao_sair {
-    justify-content: center;
-    padding: 15px 0;
-}
-
-/* Cabeçalho */
 .cabecalho_menu {
     height: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    border-bottom: 1px solid #334155;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; border-bottom: 1px solid #334155;
 }
+.menu_lateral.recolhido .cabecalho_menu { justify-content: center; padding: 0; }
+.texto_logo { font-size: 1.5rem; font-weight: bold; color: white; letter-spacing: 1px; }
+.botao_toggle { background: none; border: none; color: #94a3b8; cursor: pointer; display: flex; }
+.botao_toggle:hover { color: white; }
 
-.menu_lateral.recolhido .cabecalho_menu {
-    justify-content: center;
-    padding: 0;
-}
-
-.texto_logo {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: white;
-    letter-spacing: 1px;
-}
-
-.botao_toggle {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: color 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.botao_toggle:hover {
-    color: white;
-}
-
-/* Navegação */
-.navegacao {
-    flex: 1;
-    padding-top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-left: 10px;
-    padding-right: 10px;
-}
-
+.navegacao { flex: 1; padding-top: 20px; display: flex; flex-direction: column; gap: 8px; padding-left: 10px; padding-right: 10px; }
 .item_menu {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 15px;
-    color: #cbd5e1;
-    text-decoration: none;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    white-space: nowrap; /* Impede que o texto quebre na animação */
+    display: flex; align-items: center; gap: 12px; padding: 12px 15px;
+    color: #cbd5e1; text-decoration: none; border-radius: 8px; transition: all 0.2s; white-space: nowrap;
 }
+.item_menu:hover { background-color: #334155; color: white; }
+.item_menu.ativo { background-color: var(--primary-color); color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+.menu_lateral.recolhido .item_menu { justify-content: center; }
 
-.item_menu:hover {
-    background-color: #334155;
-    color: white;
-}
-
-.item_menu.ativo {
-    background-color: #3b82f6; /* Azul bonito */
-    color: white;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);
-}
-
-.texto_link {
-    font-weight: 500;
-}
-
-/* Rodapé */
-.rodape_menu {
-    padding: 20px;
-    border-top: 1px solid #334155;
-}
-
+.rodape_menu { padding: 20px; border-top: 1px solid #334155; }
 .botao_sair {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: rgba(239, 68, 68, 0.1); /* Vermelho bem suave */
-    color: #fca5a5;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s;
-    font-weight: 600;
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    background-color: rgba(239, 68, 68, 0.1); color: #fca5a5;
+    border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600;
 }
+.botao_sair:hover { background-color: #ef4444; color: white; }
+.menu_lateral.recolhido .botao_sair { justify-content: center; }
 
-.botao_sair:hover {
-    background-color: #ef4444;
-    color: white;
-}
-
-/* --- Conteúdo Principal --- */
-.conteudo_principal {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
+.conteudo_principal { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
 .barra_topo {
     height: 70px;
-    background-color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 30px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 30px; transition: background-color 0.3s;
 }
 
-.titulo_secao {
-    font-size: 1.25rem;
-    color: #1e293b;
-    font-weight: 600;
+.titulo_secao { font-size: 1.25rem; color: var(--text-primary); font-weight: 600; }
+
+.usuario_info { display: flex; align-items: center; gap: 15px; }
+
+.botao_tema {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); padding: 8px; border-radius: 50%;
+    transition: background 0.2s; display: flex; align-items: center;
 }
+.botao_tema:hover { background-color: var(--border-color); color: var(--primary-color); }
 
 .avatar_usuario {
-    width: 40px;
-    height: 40px;
-    background-color: #3b82f6;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
+    width: 40px; height: 40px;
+    background-color: var(--primary-color);
+    color: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-weight: bold;
 }
 
-.area_router {
-    flex: 1;
-    padding: 30px;
-    overflow-y: auto;
-}
+.area_router { flex: 1; padding: 30px; overflow-y: auto; }
 
-/* Animação de entrada das páginas (Fade) */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
