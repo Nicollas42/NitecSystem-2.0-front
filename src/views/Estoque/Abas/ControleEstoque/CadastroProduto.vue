@@ -114,6 +114,13 @@
                 <label>Preço Custo</label>
                 <input type="number" step="0.01" v-model="form.preco_custo" class="input_padrao" placeholder="Custo de Compra">
             </div>
+            <div class="grupo_input checkbox_infinito">
+                <input type="checkbox" id="chk_infinito" v-model="form.estoque_infinito">
+                <label for="chk_infinito" style="cursor: pointer;">
+                    🔄 <strong>Estoque Infinito?</strong>
+                    <small style="display:block; font-weight:normal; color:#666;">(Ex: Água, Gás encanado)</small>
+                </label>
+            </div>
             <div class="grupo_input">
                 <label>📦 Estoque Depósito</label>
                 <input type="number" step="0.001" v-model="form.estoque_deposito" class="input_padrao">
@@ -168,22 +175,29 @@ const form = ref({
     unidade_medida: 'UN', 
     preco_custo: '', preco_venda: '', 
     estoque_deposito: '', estoque_vitrine: '', 
-    validade: ''
+    validade: '',
+    estoque_infinito: false
 });
 
 const preencher_form = () => {
     if (props.produtoEdicao) {
         const p = props.produtoEdicao;
         form.value = {
-            id: p.id, tipo_item: p.tipo_item, nome: p.nome, 
+            id: p.id, 
+            tipo_item: p.tipo_item, 
+            nome: p.nome, 
             codigo_barras: p.codigo_barras, 
             codigo_balanca: p.codigo_balanca, 
             unidade_medida: p.unidade_medida,
-            preco_custo: p.preco_custo, preco_venda: p.preco_venda,
+            preco_custo: p.preco_custo, 
+            preco_venda: p.preco_venda,
             estoque_deposito: p.estoque_deposito, 
             estoque_vitrine: p.estoque_vitrine,   
-            validade: p.validade || ''
+            validade: p.validade || '',
+            // Garante que converte 1/0 ou "true"/"false" para booleano real
+            estoque_infinito: p.estoque_infinito == 1 || p.estoque_infinito == true
         };
+        
         categoria_selecionada.value = LISTA_CATEGORIAS.includes(p.categoria) ? p.categoria : 'Outros';
         
         if (p.codigo_balanca && p.codigo_balanca > 0) {
@@ -193,7 +207,21 @@ const preencher_form = () => {
         }
 
     } else {
-        form.value = { id: '', tipo_item: 'REVENDA', nome: '', codigo_barras: '', codigo_balanca: '', unidade_medida: 'UN', preco_custo: '', preco_venda: '', estoque_deposito: '', estoque_vitrine: '', validade: '' };
+        // ZERA TUDO PARA NOVO CADASTRO
+        form.value = { 
+            id: '', 
+            tipo_item: 'REVENDA', 
+            nome: '', 
+            codigo_barras: '', 
+            codigo_balanca: '', 
+            unidade_medida: 'UN', 
+            preco_custo: '', 
+            preco_venda: '', 
+            estoque_deposito: '', 
+            estoque_vitrine: '', 
+            validade: '',
+            estoque_infinito: false // <--- IMPORTANTE: Começa desmarcado
+        };
         categoria_selecionada.value = 'Outros';
         usa_balanca.value = false;
     }

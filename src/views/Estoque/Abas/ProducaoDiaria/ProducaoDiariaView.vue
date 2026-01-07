@@ -66,7 +66,9 @@
                         <div class="info_topo_ing">
                             <strong>{{ ing.nome }}</strong>
                             <span :class="['badge_estoque', ing.saldo_insuficiente ? 'ruim' : 'bom']">
-                                Estoque: {{ formatar_inteligente(ing.estoque_atual, ing.unidade) }}
+                                Estoque: 
+                                <span v-if="ing.eh_infinito">♾️ Ilimitado</span>
+                                <span v-else>{{ formatar_inteligente(ing.estoque_atual, ing.unidade) }}</span>
                             </span>
                         </div>
                         
@@ -168,7 +170,9 @@ const carregar_ficha = async () => {
             nome: i.nome,
             unidade: i.unidade,
             qtd_base: parseFloat(i.qtd),
-            estoque_atual: parseFloat(i.estoque_atual) || 0 
+            estoque_atual: parseFloat(i.estoque_atual) || 0,
+            // CAPTURA SE É INFINITO (converte 1/0 para bool)
+            estoque_infinito: i.estoque_infinito == 1 || i.estoque_infinito == true 
         }));
 
     } catch (e) { console.error(e); }
@@ -184,15 +188,20 @@ const ingredientes_calculados = computed(() => {
     const fator = fator_multiplicador.value;
     return ingredientes_base.value.map(ing => {
         const necessaria = ing.qtd_base * fator;
-        // Pequena tolerância para evitar erros de ponto flutuante (ex: 30.00000000004)
         const estoque = ing.estoque_atual;
-        // Considera falta se a diferença for maior que 0.0001
-        const falta = necessaria - estoque;
+        
+        // Verifica se é infinito
+        const ehInfinito = ing.estoque_infinito; 
+        
+        // Se for infinito, a "falta" é zero para fins de cálculo
+        const falta = ehInfinito ? 0 : (necessaria - estoque);
         
         return {
             ...ing,
             qtd_calculada: necessaria,
-            saldo_insuficiente: falta > 0.0001
+            // Só marca como insuficiente se NÃO for infinito E faltar material
+            saldo_insuficiente: !ehInfinito && (falta > 0.0001),
+            eh_infinito: ehInfinito // Passa para o template usar no v-if
         };
     });
 });
