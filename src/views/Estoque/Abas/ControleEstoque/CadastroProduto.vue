@@ -5,145 +5,89 @@
         <h4>Editando: {{ produtoEdicao.nome }}</h4>
     </div>
 
-    <div class="secao_form">
-        <h3 class="subtitulo_form">1. Classificação</h3>
-        <div class="grupo_radio_tipos">
-            <label :class="['card_radio', { selecionado: form.tipo_item === 'REVENDA' }]">
-                <input type="radio" value="REVENDA" v-model="form.tipo_item">
-                <span>🛒 Revenda</span>
-                <small class="tip">Venda direta</small>
-            </label>
-            <label :class="['card_radio', { selecionado: form.tipo_item === 'INSUMOS' }]">
-                <input type="radio" value="INSUMOS" v-model="form.tipo_item">
-                <span>🌾 Insumos</span>
-                <small class="tip">Matéria-prima</small>
-            </label>
-            <label :class="['card_radio', { selecionado: form.tipo_item === 'INTERNO' }]">
-                <input type="radio" value="INTERNO" v-model="form.tipo_item">
-                <span>👨‍🍳 Interno</span>
-                <small class="tip">Fabricação Própria</small>
-            </label>
-        </div>
+    <div class="nav_tipos">
+        <label :class="['card_radio', { selecionado: form.tipo_item === 'REVENDA' }]">
+            <input type="radio" value="REVENDA" v-model="form.tipo_item">
+            <span>🛒 Revenda</span>
+            <small class="tip">Venda direta</small>
+        </label>
+        <label :class="['card_radio', { selecionado: form.tipo_item === 'INSUMOS' }]">
+            <input type="radio" value="INSUMOS" v-model="form.tipo_item">
+            <span>🌾 Insumos</span>
+            <small class="tip">Matéria-prima</small>
+        </label>
+        <label :class="['card_radio', { selecionado: form.tipo_item === 'INTERNO' }]">
+            <input type="radio" value="INTERNO" v-model="form.tipo_item">
+            <span>👨‍🍳 Interno</span>
+            <small class="tip">Produção Própria</small>
+        </label>
     </div>
 
     <div class="secao_form">
-        <h3 class="subtitulo_form">2. Identificação</h3>
+        <h3 class="subtitulo_form">1. Identificação do Item</h3>
         
-        <div class="linha_dupla">
-            <div class="grupo_input">
-                <label>Nome do Produto *</label>
-                <input type="text" v-model="form.nome" required class="input_padrao">
-            </div>
+        <div class="layout_identificacao">
             
-            <div class="grupo_input">
-                <label>Unidade *</label>
-                <select v-model="form.unidade_medida" required class="input_padrao">
-                    <option v-for="u in LISTA_UNIDADES" :key="u.codigo" :value="u.codigo">{{ u.nome }}</option>
-                </select>
+            <div class="coluna_imagem">
+                <UploadImagem 
+                    label="FOTO"
+                    :imagemAtualPath="form.imagem_path_banco"
+                    @arquivo-selecionado="handleNovoArquivo"
+                />
+            </div>
+
+            <div class="coluna_dados">
                 
-                <div v-if="['KG', 'L'].includes(form.unidade_medida)" class="checkbox_balanca">
-                    <input type="checkbox" id="chk_balanca" v-model="usa_balanca">
-                    <label for="chk_balanca" style="cursor: pointer; color: var(--primary-color); font-weight: bold;">
-                        ⚖️ Este produto é pesado no caixa?
-                    </label>
+                <div class="grupo_input">
+                    <label>Nome do Produto *</label>
+                    <input type="text" v-model="form.nome" required class="input_padrao" placeholder="Ex: Coca-cola 2L">
+                </div>
+
+                <div class="grid_compacto">
+                    
+                    <div class="grupo_input" style="flex: 2;">
+                        <label>Categoria *</label>
+                        <select v-model="categoria_selecionada" class="input_padrao" required>
+                            <option value="" disabled>Selecione...</option>
+                            <option v-for="cat in LISTA_CATEGORIAS" :key="cat" :value="cat">{{ cat }}</option>
+                        </select>
+                    </div>
+
+                    <div class="grupo_input" style="flex: 1; min-width: 90px;">
+                        <label>Unidade *</label>
+                        <select v-model="form.unidade_medida" required class="input_padrao">
+                            <option v-for="u in LISTA_UNIDADES" :key="u.codigo" :value="u.codigo">{{ u.nome }}</option>
+                        </select>
+                    </div>
+
+                    <div class="grupo_input" style="flex: 1; min-width: 80px;">
+                        <label>ID (#)</label>
+                        <input type="number" v-model="form.id" :disabled="!!produtoEdicao" placeholder="Auto" class="input_padrao">
+                    </div>
+
+                    <div class="grupo_input" style="flex: 2;">
+                        <div v-if="['KG', 'L'].includes(form.unidade_medida)" class="flex_balanca">
+                            <div class="check_balanca" title="Usar Balança">
+                                <input type="checkbox" id="chk_b" v-model="usa_balanca">
+                                <label for="chk_b">⚖️</label>
+                            </div>
+                            <input v-if="usa_balanca" type="number" v-model="form.codigo_balanca" class="input_padrao destaque_balanca" placeholder="Digito (Ex: 50)">
+                            <input v-else type="text" v-model="form.codigo_barras" class="input_padrao" placeholder="EAN / Barras">
+                        </div>
+                        <div v-else>
+                            <label>Cód. Barras (EAN)</label>
+                            <input type="text" v-model="form.codigo_barras" class="input_padrao" placeholder="Leitor...">
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
-
-        <div class="linha_id_cat_ean">
-            
-            <div class="grupo_input">
-                <label>ID Interno</label>
-                <input type="number" v-model="form.id" :disabled="!!produtoEdicao" placeholder="Auto" class="input_padrao">
-            </div>
-
-            <div class="grupo_input">
-                <label>Categoria *</label>
-                <select v-model="categoria_selecionada" class="input_padrao" required>
-                    <option value="" disabled>Selecione...</option>
-                    <option v-for="cat in LISTA_CATEGORIAS" :key="cat" :value="cat">{{ cat }}</option>
-                </select>
-            </div>
-
-            <div class="grupo_input" v-if="usa_balanca && ['KG', 'L'].includes(form.unidade_medida)">
-                <label style="color: #d97706; font-weight: bold;">⚖️ Cód. na Balança (Ex: 50)</label>
-                <input type="number" v-model="form.codigo_balanca" class="input_padrao destaque_balanca" placeholder="Digito da Balança">
-            </div>
-            
-            <div class="grupo_input" v-else>
-                <label>EAN (Código de Barras)</label>
-                <input type="text" v-model="form.codigo_barras" class="input_padrao" placeholder="Leitor...">
-            </div>
-        </div>
     </div>
 
-    <div v-if="form.tipo_item === 'REVENDA'" class="secao_form destaque_financeiro">
-        <h3 class="subtitulo_form">3. Valores & Estoque (Loja Atual)</h3>
-        
-        <div class="linha_dupla">
-            <div class="grupo_input">
-                <label>Preço Custo</label>
-                <input type="number" step="0.01" v-model="form.preco_custo" class="input_padrao">
-            </div>
-            <div class="grupo_input">
-                <label>Preço Venda *</label>
-                <input type="number" step="0.01" v-model="form.preco_venda" required class="input_padrao">
-            </div>
-        </div>
-
-        <div class="linha_tripla">
-            <div class="grupo_input">
-                <label>📦 Depósito</label>
-                <input type="number" step="0.001" v-model="form.estoque_deposito" class="input_padrao">
-            </div>
-            <div class="grupo_input">
-                <label>🏪 Vitrine (Loja)</label>
-                <input type="number" step="0.001" v-model="form.estoque_vitrine" class="input_padrao destaque_vitrine">
-            </div>
-            <div class="grupo_input">
-                <label>Validade</label>
-                <input type="date" v-model="form.validade" class="input_padrao">
-            </div>
-        </div>
-    </div>
-
-    <div v-if="form.tipo_item === 'INSUMOS'" class="secao_form destaque_financeiro">
-        <h3 class="subtitulo_form">3. Estoque de Insumo</h3>
-        <div class="linha_tripla">
-            <div class="grupo_input">
-                <label>Preço Custo</label>
-                <input type="number" step="0.01" v-model="form.preco_custo" class="input_padrao" placeholder="Custo de Compra">
-            </div>
-            <div class="grupo_input checkbox_infinito">
-                <input type="checkbox" id="chk_infinito" v-model="form.estoque_infinito">
-                <label for="chk_infinito" style="cursor: pointer;">
-                    🔄 <strong>Estoque Infinito?</strong>
-                    <small style="display:block; font-weight:normal; color:#666;">(Ex: Água, Gás encanado)</small>
-                </label>
-            </div>
-            <div class="grupo_input">
-                <label>📦 Estoque Depósito</label>
-                <input type="number" step="0.001" v-model="form.estoque_deposito" class="input_padrao">
-            </div>
-            <div class="grupo_input">
-                <label>Validade</label>
-                <input type="date" v-model="form.validade" class="input_padrao">
-            </div>
-        </div>
-        <p class="aviso_info">ℹ️ Insumos não possuem preço de venda direta.</p>
-    </div>
-
-    <div v-if="form.tipo_item === 'INTERNO'" class="secao_form destaque_info">
-        <h3 class="subtitulo_form">3. Configuração de Produção</h3>
-        <div class="box_aviso_producao">
-            <p><strong>Este é um produto de Fabricação Própria.</strong></p>
-            <ul>
-                <li>💰 <strong>Custo:</strong> Será calculado na Ficha Técnica.</li>
-                <li>🏷️ <strong>Venda:</strong> Definido na Precificação.</li>
-                <li>📦 <strong>Estoque:</strong> Alimentado por Produção.</li>
-            </ul>
-        </div>
-    </div>
+    <FormRevenda v-if="form.tipo_item === 'REVENDA'" :form="form" />
+    <FormInsumo v-if="form.tipo_item === 'INSUMOS'" :form="form" />
+    <FormInterno v-if="form.tipo_item === 'INTERNO'" />
 
     <div class="area_botoes">
         <button type="button" class="botao_cancelar" @click="$emit('cancelar')">Cancelar</button>
@@ -158,11 +102,15 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
 import axios from 'axios';
+import UploadImagem from '@/components/UploadImagem.vue';
+import FormRevenda from './forms/FormRevenda.vue';
+import FormInsumo from './forms/FormInsumo.vue';
+import FormInterno from './forms/FormInterno.vue';
 
 const props = defineProps({ produtoEdicao: Object });
 const emit = defineEmits(['salvo', 'cancelar']);
 
-const LISTA_UNIDADES = [{ codigo: 'UN', nome: 'Unidade' }, { codigo: 'KG', nome: 'Quilograma' }, { codigo: 'L', nome: 'Litro' }, { codigo: 'CX', nome: 'Caixa' }];
+const LISTA_UNIDADES = [{ codigo: 'UN', nome: 'UN' }, { codigo: 'KG', nome: 'KG' }, { codigo: 'L', nome: 'LT' }, { codigo: 'CX', nome: 'CX' }];
 const LISTA_CATEGORIAS = ["Panificação", "Confeitaria", "Bebidas", "Frios", "Insumos", "Outros"];
 
 const categoria_selecionada = ref('Outros');
@@ -170,57 +118,39 @@ const usa_balanca = ref(false);
 
 const form = ref({
     id: '', tipo_item: 'REVENDA', nome: '', 
-    codigo_barras: '', 
-    codigo_balanca: '', 
+    codigo_barras: '', codigo_balanca: '', 
     unidade_medida: 'UN', 
     preco_custo: '', preco_venda: '', 
     estoque_deposito: '', estoque_vitrine: '', 
-    validade: '',
-    estoque_infinito: false
+    validade: '', estoque_infinito: false,
+    imagem_path_banco: null, imagem_arquivo_raw: null
 });
+
+const handleNovoArquivo = (file) => { form.value.imagem_arquivo_raw = file; };
 
 const preencher_form = () => {
     if (props.produtoEdicao) {
         const p = props.produtoEdicao;
         form.value = {
-            id: p.id, 
-            tipo_item: p.tipo_item, 
-            nome: p.nome, 
-            codigo_barras: p.codigo_barras, 
-            codigo_balanca: p.codigo_balanca, 
+            id: p.id, tipo_item: p.tipo_item, nome: p.nome, 
+            codigo_barras: p.codigo_barras, codigo_balanca: p.codigo_balanca, 
             unidade_medida: p.unidade_medida,
-            preco_custo: p.preco_custo, 
-            preco_venda: p.preco_venda,
-            estoque_deposito: p.estoque_deposito, 
-            estoque_vitrine: p.estoque_vitrine,   
+            preco_custo: p.preco_custo, preco_venda: p.preco_venda,
+            estoque_deposito: p.estoque_deposito, estoque_vitrine: p.estoque_vitrine,   
             validade: p.validade || '',
-            // Garante que converte 1/0 ou "true"/"false" para booleano real
-            estoque_infinito: p.estoque_infinito == 1 || p.estoque_infinito == true
+            estoque_infinito: p.estoque_infinito == 1 || p.estoque_infinito == true,
+            imagem_path_banco: p.imagem_path, imagem_arquivo_raw: null
         };
-        
         categoria_selecionada.value = LISTA_CATEGORIAS.includes(p.categoria) ? p.categoria : 'Outros';
-        
-        if (p.codigo_balanca && p.codigo_balanca > 0) {
-            usa_balanca.value = true;
-        } else {
-            usa_balanca.value = false;
-        }
-
+        usa_balanca.value = (p.codigo_balanca && p.codigo_balanca > 0);
     } else {
-        // ZERA TUDO PARA NOVO CADASTRO
         form.value = { 
-            id: '', 
-            tipo_item: 'REVENDA', 
-            nome: '', 
-            codigo_barras: '', 
-            codigo_balanca: '', 
-            unidade_medida: 'UN', 
-            preco_custo: '', 
-            preco_venda: '', 
-            estoque_deposito: '', 
-            estoque_vitrine: '', 
-            validade: '',
-            estoque_infinito: false // <--- IMPORTANTE: Começa desmarcado
+            id: '', tipo_item: 'REVENDA', nome: '', 
+            codigo_barras: '', codigo_balanca: '', 
+            unidade_medida: 'UN', preco_custo: '', preco_venda: '', 
+            estoque_deposito: '', estoque_vitrine: '', 
+            validade: '', estoque_infinito: false,
+            imagem_path_banco: null, imagem_arquivo_raw: null
         };
         categoria_selecionada.value = 'Outros';
         usa_balanca.value = false;
@@ -228,9 +158,7 @@ const preencher_form = () => {
 };
 
 watch(() => form.value.unidade_medida, (novaUnidade) => {
-    if (!['KG', 'L'].includes(novaUnidade)) {
-        usa_balanca.value = false;
-    }
+    if (!['KG', 'L'].includes(novaUnidade)) usa_balanca.value = false;
 });
 
 onMounted(preencher_form);
@@ -238,41 +166,46 @@ watch(() => props.produtoEdicao, preencher_form);
 
 const submeter_form = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
+    let formData = new FormData();
+    formData.append('loja_id', lojaId);
     
-    // Cria o payload base com todos os campos
-    const payload = { 
-        ...form.value, 
-        categoria: categoria_selecionada.value, 
-        loja_id: lojaId,
-        codigo_balanca: usa_balanca.value ? form.value.codigo_balanca : null,
-        codigo_barras: !usa_balanca.value ? form.value.codigo_barras : null
-    };
-
-    // CORREÇÃO AQUI:
-    // Se for INTERNO, não enviamos dados financeiros nem de estoque.
-    // Assim o backend NÃO os atualiza (mantém o que já está salvo no banco vindo da Ficha Técnica).
-    if (form.value.tipo_item === 'INTERNO') {
-        delete payload.preco_custo;
-        delete payload.preco_venda;
-        delete payload.estoque_deposito;
-        delete payload.estoque_vitrine;
-        delete payload.validade;
+    formData.append('tipo_item', form.value.tipo_item);
+    formData.append('nome', form.value.nome);
+    formData.append('unidade_medida', form.value.unidade_medida);
+    formData.append('categoria', categoria_selecionada.value);
+    
+    if(form.value.id) formData.append('id', form.value.id);
+    
+    if(usa_balanca.value && form.value.codigo_balanca) {
+        formData.append('codigo_balanca', form.value.codigo_balanca);
+        formData.append('codigo_barras', ''); 
     } else {
-        // Se NÃO for interno, garante que os campos vazios vão como 0 ou null
-        payload.preco_custo = form.value.preco_custo || 0;
-        payload.preco_venda = form.value.preco_venda || 0;
-        payload.estoque_deposito = form.value.estoque_deposito || 0;
-        payload.estoque_vitrine = form.value.estoque_vitrine || 0;
-        payload.validade = form.value.validade || null;
+        if(form.value.codigo_barras) formData.append('codigo_barras', form.value.codigo_barras);
+        formData.append('codigo_balanca', '');
+    }
+
+    if (form.value.imagem_arquivo_raw) {
+        formData.append('imagem_arquivo', form.value.imagem_arquivo_raw);
+    }
+
+    if (form.value.tipo_item !== 'INTERNO') {
+        formData.append('preco_custo', form.value.preco_custo || 0);
+        formData.append('preco_venda', form.value.preco_venda || 0);
+        formData.append('estoque_deposito', form.value.estoque_deposito || 0);
+        formData.append('estoque_vitrine', form.value.estoque_vitrine || 0);
+        if(form.value.validade) formData.append('validade', form.value.validade);
+        formData.append('estoque_infinito', form.value.estoque_infinito ? '1' : '0');
     }
 
     try {
-        const url = 'http://127.0.0.1:8000/api/produtos';
+        let url = 'http://127.0.0.1:8000/api/produtos';
         if (props.produtoEdicao) {
-            await axios.put(`${url}/${form.value.id}`, payload, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` } });
-        } else {
-            await axios.post(url, payload, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` } });
+            url += `/${form.value.id}`;
+            formData.append('_method', 'PUT'); 
         }
+        await axios.post(url, formData, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}`, 'Content-Type': 'multipart/form-data' }
+        });
         emit('salvo');
     } catch (e) {
         alert("Erro: " + (e.response?.data?.mensagem || e.message));
@@ -284,38 +217,55 @@ const submeter_form = async () => {
 .form_cadastro { padding: 10px; }
 .modo_edicao { background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 8px; margin-top: 10px; }
 .header_form h4 { margin: 0 0 15px 0; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-.secao_form { margin-bottom: 20px; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; }
-.subtitulo_form { color: var(--primary-color); font-size: 14px; margin-bottom: 10px; font-weight: bold; }
+
+/* SELEÇÃO DE TIPO */
+.nav_tipos { display: flex; gap: 10px; margin-bottom: 20px; }
+.card_radio { flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; color: var(--text-secondary); background: var(--bg-page); }
+.card_radio:hover { border-color: var(--primary-color); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+.card_radio.selecionado { border-color: var(--primary-color); background: rgba(59, 130, 246, 0.1); color: var(--primary-color); font-weight: bold; transform: translateY(-2px); }
+.card_radio input { display: none; }
+.card_radio span { font-size: 15px; }
+.card_radio .tip { font-size: 11px; margin-top: 2px; opacity: 0.8; }
+
+/* LAYOUT NOVO (MAIS COMPACTO) */
+.layout_identificacao {
+    display: grid;
+    /* Coluna da esquerda fixa 150px, coluna direita ocupa o resto */
+    grid-template-columns: 150px 1fr; 
+    gap: 20px;
+    align-items: start;
+}
+
+.coluna_imagem {
+    /* Centraliza a imagem na coluna dela */
+    display: flex; 
+    justify-content: center; 
+}
+
+/* GRADE DOS CAMPOS À DIREITA */
+.grid_compacto {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap; /* Permite quebrar se a tela for pequena */
+}
+
 .grupo_input { margin-bottom: 10px; }
 .grupo_input label { display: block; margin-bottom: 4px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
 .input_padrao { width: 100%; padding: 8px; background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; }
 
-/* LAYOUT DE GRIDS */
-.linha_dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px; }
-.linha_tripla { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
+/* Ajuste Balança */
+.flex_balanca { display: flex; gap: 5px; align-items: center; }
+.check_balanca { padding-top: 5px; cursor: pointer; }
+.destaque_balanca { background-color: #fffbeb !important; border-color: #fcd34d !important; color: #b45309 !important; font-weight: bold; }
 
-/* LINHA PERSONALIZADA */
-.linha_id_cat_ean { 
-    display: grid; 
-    grid-template-columns: 100px 1fr 1fr; 
-    gap: 15px; 
-    margin-bottom: 10px; 
+.area_botoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; pt: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; }
+.botao_salvar { background: var(--primary-color); color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+.botao_cancelar { background: transparent; border: 1px solid var(--border-color); padding: 12px 25px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .layout_identificacao { grid-template-columns: 1fr; }
+    .coluna_imagem { margin: 0 auto 15px auto; width: 100%; justify-content: center; }
+    .grid_compacto { flex-direction: column; gap: 10px; } 
 }
-
-.grupo_radio_tipos { display: flex; gap: 10px; }
-.card_radio { flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; color: var(--text-secondary); }
-.card_radio:hover { border-color: var(--primary-color); }
-.card_radio.selecionado { border-color: var(--primary-color); background: rgba(59, 130, 246, 0.1); color: var(--primary-color); font-weight: bold; }
-.card_radio input { display: none; }
-
-.area_botoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
-.botao_salvar { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-.botao_cancelar { background: transparent; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-primary); }
-
-.checkbox_balanca { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.destaque_balanca { background-color: var(--highlight-bg) !important; color: var(--highlight-text) !important; border-color: var(--highlight-border) !important; }
-.destaque_vitrine { background-color: var(--highlight-bg) !important; color: var(--highlight-text) !important; border-color: var(--highlight-border) !important; }
-
-.aviso_info { font-size: 12px; color: var(--text-secondary); margin-top: 5px; font-style: italic; }
-.box_aviso_producao { padding: 15px; border-radius: 6px; font-size: 14px; }
 </style>
