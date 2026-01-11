@@ -1,11 +1,14 @@
 import axios from 'axios';
 
-/**
- * Criação da instância do Axios com a URL base definida no .env
- * Isso evita ter que digitar o endereço completo toda vez.
- */
+// Lógica inteligente:
+// 1. Tenta pegar a URL da Vercel (import.meta.env.VITE_API_URL)
+// 2. Se não existir (estiver no seu PC), usa 'http://127.0.0.1:8000'
+// 3. Garante que não tenha barra duplicada e adiciona '/api' no final
+const domain = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const baseURL = domain.endsWith('/') ? `${domain}api` : `${domain}/api`;
+
 const api_erp = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
+    baseURL: baseURL,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -14,7 +17,6 @@ const api_erp = axios.create({
 
 /**
  * Interceptador para injetar o token em TODAS as requisições automaticamente.
- * Assim você não precisa configurar o header manualmente no Login/Register toda vez.
  */
 api_erp.interceptors.request.use(config => {
     const token = localStorage.getItem('token_erp');

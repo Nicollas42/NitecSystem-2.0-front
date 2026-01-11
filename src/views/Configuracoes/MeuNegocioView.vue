@@ -51,7 +51,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+// MUDANÇA 1: Importamos nossa instância configurada em vez do axios puro
+import api from '../../services/api'; // Ajuste o caminho se necessário (ex: '@/services/api')
 import LojaCard from './Components/LojaCard.vue';
 import PasswordModal from './Components/PasswordModal.vue';
 
@@ -67,9 +68,8 @@ const loja_ativa_id = ref(null);
 const carregar_dados = async () => {
     carregando.value = true;
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/minhas-lojas', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        // MUDANÇA 2: URL limpa e sem headers manuais
+        const res = await api.get('/minhas-lojas');
 
         // Helper para formatar dados vindos da API
         const formatar = (l) => ({ 
@@ -89,22 +89,19 @@ const carregar_dados = async () => {
         if (salvo) {
             loja_ativa_id.value = parseInt(salvo);
         } else if (matriz.value) {
-            // Se não tiver nenhuma salva, seleciona a matriz por padrão
             definir_loja_ativa(matriz.value.id);
         }
 
     } catch (error) { 
-        console.error(error); 
+        console.error("Erro ao carregar lojas:", error); 
     } finally { 
         carregando.value = false; 
     }
 };
 
-// --- NOVA FUNÇÃO: Definir Contexto ---
 const definir_loja_ativa = (id) => {
     loja_ativa_id.value = id;
     localStorage.setItem('loja_ativa_id', id);
-    // Opcional: alert("Loja de trabalho alterada!");
 };
 
 // --- LÓGICA DE CADEADO E SALVAR ---
@@ -116,12 +113,14 @@ const tentar_desbloquear = (loja) => {
 
 const verificar_senha_api = async (senha) => {
     try {
-        await axios.post('http://127.0.0.1:8000/api/verificar-senha', { password: senha }, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        // MUDANÇA 3: Chamada limpa
+        await api.post('/verificar-senha', { password: senha });
+        
         if (loja_alvo.value) loja_alvo.value.bloqueado = false;
         modal_aberto.value = false;
-    } catch (error) { alert("Senha incorreta!"); }
+    } catch (error) { 
+        alert("Senha incorreta!"); 
+    }
 };
 
 const salvar_tudo = async () => {
@@ -138,17 +137,20 @@ const salvar_tudo = async () => {
             }
         }
         alert("Dados atualizados!");
-    } catch (e) { alert("Erro ao salvar."); } finally { carregando.value = false; }
+    } catch (e) { 
+        alert("Erro ao salvar."); 
+    } finally { 
+        carregando.value = false; 
+    }
 };
 
 const update_api = async (loja) => {
-    await axios.put(`http://127.0.0.1:8000/api/lojas/${loja.id}`, {
+    // MUDANÇA 4: URL limpa
+    await api.put(`/lojas/${loja.id}`, {
         nome_fantasia: loja.nome_fantasia,
         documento: loja.documento,
         telefone: loja.telefone,
         endereco: loja.endereco
-    }, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
     });
 };
 
