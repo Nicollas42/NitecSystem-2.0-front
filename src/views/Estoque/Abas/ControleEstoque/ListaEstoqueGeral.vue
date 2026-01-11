@@ -16,7 +16,7 @@
             <tr>
               <th width="50" class="col_center">ID</th>
               <th class="col_left">Produto / Detalhes</th>
-              <th class="col_left">Filial</th>
+              <th class="col_left" width="160">Fornecedor</th> <th class="col_left">Filial</th>
               <th class="col_center">Custo</th>
               <th class="col_center">Venda</th>
               <th class="col_center" width="140">Validade (Dias)</th>
@@ -42,6 +42,14 @@
                   <div class="area_cat">
                       <span class="badge_cat">{{ item.categoria }}</span>
                   </div>
+              </td>
+
+              <td>
+                <div v-if="item.fornecedor_nome" class="box_fornecedor_geral">
+                    <span class="nome_f">{{ item.fornecedor_nome }}</span>
+                    <small class="nome_v" v-if="item.vendedor_nome">👤 {{ item.vendedor_nome }}</small>
+                </div>
+                <span v-else class="texto_vazio">--</span>
               </td>
 
               <td>
@@ -117,7 +125,8 @@ const lista_filtrada_geral = computed(() => {
         String(p.prod_id).includes(termo) ||
         (p.codigo_barras && p.codigo_barras.includes(termo)) ||
         (p.codigo_balanca && String(p.codigo_balanca).includes(termo)) ||
-        p.filial_nome.toLowerCase().includes(termo)
+        p.filial_nome.toLowerCase().includes(termo) ||
+        (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo)) // Filtra também por fornecedor
     );
 });
 
@@ -144,7 +153,6 @@ onMounted(carregar_estoque_geral);
 .tabela_produtos th { padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; }
 .tabela_produtos td { padding: 8px 10px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); font-size: 13px; vertical-align: middle; }
 
-/* ALINHAMENTOS */
 .col_center { text-align: center; }
 .col_left { text-align: left; }
 
@@ -163,7 +171,6 @@ onMounted(carregar_estoque_geral);
 .tag_loja.matriz { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
 .tag_loja.filial { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
 
-/* Validade */
 .box_validade { display: flex; flex-direction: column; align-items: center; padding: 4px; border-radius: 6px; width: 100px; margin: 0 auto; }
 .dias_restantes { font-weight: 800; font-size: 13px; }
 .status_validade { font-size: 10px; font-weight: 600; text-transform: uppercase; }
@@ -171,4 +178,9 @@ onMounted(carregar_estoque_geral);
 
 .unidade { font-size: 10px; color: #999; margin-left: 2px; }
 .aviso_vazio { text-align: center; padding: 30px; color: var(--text-secondary); }
+
+/* --- NOVOS ESTILOS PARA ESTOQUE GERAL --- */
+.box_fornecedor_geral { display: flex; flex-direction: column; }
+.nome_f { font-weight: 600; color: #4b5563; font-size: 12px; }
+.nome_v { font-size: 10px; color: #9ca3af; }
 </style>
