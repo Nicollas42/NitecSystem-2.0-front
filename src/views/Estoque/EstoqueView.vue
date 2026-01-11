@@ -60,7 +60,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+// CORREÇÃO: Adicionado mais um "../" para chegar na raiz do projeto
+import { api_request } from '@/services/api_helper';
 
 // Importando os Componentes Principais
 import TabEstoque from './Abas/TabEstoque.vue';
@@ -77,17 +78,20 @@ const carregar_info_loja = async () => {
     if(!lojaId) return;
 
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/minhas-lojas', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        const res = await api_request('get', '/minhas-lojas');
         
         let loja = null;
-        if (res.data.matriz && res.data.matriz.id == lojaId) loja = res.data.matriz;
-        else if (res.data.filiais) loja = res.data.filiais.find(f => f.id == lojaId);
+        
+        if (res && res.matriz && res.matriz.id == lojaId) {
+            loja = res.matriz;
+        } 
+        else if (res && res.filiais) {
+            loja = res.filiais.find(f => f.id == lojaId);
+        }
 
         if(loja) loja_ativa_nome.value = loja.nome_fantasia;
 
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erro ao carregar loja ativa:", e); }
 };
 
 onMounted(carregar_info_loja);

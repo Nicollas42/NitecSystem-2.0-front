@@ -61,7 +61,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import UploadImagem from '@/components/UploadImagem.vue';
 import ModalCadastroFornecedor from '@/components/ModalCadastroFornecedor.vue';
 import FormIdentificacao from './Partials/FormIdentificacao.vue';
@@ -78,29 +78,25 @@ const emit = defineEmits(['salvo', 'cancelar']);
 // Estado Local (UI e Listas)
 const lista_fornecedores = ref([]);
 const modalFornecedor = ref(false);
-const fornecedorEmEdicao = ref(null); // Variável que controla se é edição ou novo
+const fornecedorEmEdicao = ref(null); 
 
-// Estado do Formulário (Vem do Composable useProdutoForm.js)
 const { form, inicializarFormulario, salvarProduto } = useProdutoForm();
 
-// --- Lógica de Carregamento ---
 const carregar_fornecedores = async () => {
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/fornecedores', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
-        lista_fornecedores.value = res.data;
+        // CORREÇÃO: Chamada limpa
+        const res = await api_request('get', '/fornecedores');
+        // CORREÇÃO: Atribuição direta
+        lista_fornecedores.value = res || [];
     } catch (e) { console.error(e); }
 };
 
-// --- Lógica do Modal de Fornecedor ---
 const abrirModalNovo = () => {
-    fornecedorEmEdicao.value = null; // Garante que o modal abra vazio
+    fornecedorEmEdicao.value = null; 
     modalFornecedor.value = true;
 };
 
 const abrirModalEdicao = (idFornecedor) => {
-    // Procura o objeto completo do fornecedor para preencher o modal
     const alvo = lista_fornecedores.value.find(f => f.id === idFornecedor);
     if (alvo) {
         fornecedorEmEdicao.value = alvo;
@@ -109,20 +105,15 @@ const abrirModalEdicao = (idFornecedor) => {
 };
 
 const aoSalvarFornecedor = (fornecedorSalvo) => {
-    // Verifica se o fornecedor já existia na lista (Edição)
     const index = lista_fornecedores.value.findIndex(f => f.id === fornecedorSalvo.id);
-    
     if (index !== -1) {
-        // EDIÇÃO: Atualiza os dados na lista localmente
         lista_fornecedores.value[index] = fornecedorSalvo;
     } else {
-        // NOVO: Adiciona na lista e já deixa selecionado
         lista_fornecedores.value.push(fornecedorSalvo);
         form.value.fornecedor_id = fornecedorSalvo.id;
     }
 };
 
-// --- Ciclo de Vida ---
 onMounted(() => {
     carregar_fornecedores();
     inicializarFormulario(props.produtoEdicao);
@@ -132,7 +123,6 @@ watch(() => props.produtoEdicao, (novoVal) => {
     inicializarFormulario(novoVal);
 });
 
-// --- Envio do Formulário Principal ---
 const submit = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {

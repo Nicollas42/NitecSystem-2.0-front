@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 // MUDANÇA 1: Importar a API centralizada
-import api from '@/services/api'; 
+import { api_request } from '@/services/api_helper'; 
 
 const router = useRouter();
 const carregando = ref(false);
@@ -39,7 +39,7 @@ const realizar_cadastro = async () => {
     carregando.value = true;
     try {
         // MUDANÇA 2: Chamada limpa (sem http://localhost...)
-        const res = await api.post('/cadastrar', form.value);
+        const res = await api_request('post', '/cadastrar', form.value);
         
         alert("Cadastro realizado com sucesso! Bem-vindo.");
         

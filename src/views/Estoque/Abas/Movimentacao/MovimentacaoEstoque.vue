@@ -62,12 +62,12 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import BuscaProdutoInput from '@/components/BuscaProdutoInput.vue';
 
 const lista_produtos = ref([]);
 const produto_selecionado = ref(null);
-const texto_busca_produto = ref(''); // Controla o texto do input
+const texto_busca_produto = ref(''); 
 
 const form = ref({ produto_id: '', acao: 'transf_dep_vit', quantidade: '', motivo: '' });
 const modal = reactive({ aberto: false, tipo: 'sucesso', titulo: '', mensagem: '' });
@@ -75,18 +75,24 @@ const modal = reactive({ aberto: false, tipo: 'sucesso', titulo: '', mensagem: '
 const carregar_produtos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
+        // CORREÇÃO: URL curta
+        const res = await api_request('get', '/produtos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
-        lista_produtos.value = res.data.filter(p => p.tem_cadastro == 1);
+        
+        // CORREÇÃO: Blindagem de resposta
+        let lista = [];
+        if (Array.isArray(res)) lista = res;
+        else if (res.data && Array.isArray(res.data)) lista = res.data;
+
+        lista_produtos.value = lista.filter(p => p.tem_cadastro == 1);
     } catch (e) { console.error(e); }
 };
 
 const selecionar_produto = (prod) => {
     produto_selecionado.value = prod;
     form.value.produto_id = prod.id;
-    // O texto do input é atualizado automaticamente pelo v-model no componente
 };
 
 const confirmar_movimentacao = async () => {
@@ -99,7 +105,8 @@ const confirmar_movimentacao = async () => {
     const payload = { ...form.value, loja_id: lojaId };
 
     try {
-        await axios.post('http://127.0.0.1:8000/api/movimentacao/registrar', payload, {
+        // CORREÇÃO: URL Curta
+        await api_request('post', '/movimentacao/registrar', payload, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
         
@@ -108,7 +115,7 @@ const confirmar_movimentacao = async () => {
         // Limpar Campos
         form.value.quantidade = ''; 
         form.value.motivo = '';
-        texto_busca_produto.value = ''; // Limpa o input visualmente
+        texto_busca_produto.value = '';
         produto_selecionado.value = null;
         
         carregar_produtos();
@@ -128,6 +135,7 @@ onMounted(carregar_produtos);
 </script>
 
 <style scoped>
+/* O ESTILO PERMANECE IGUAL, NENHUMA MUDANÇA VISUAL */
 .movest_container { animation: fadeIn 0.3s ease; }
 .movest_card { background: var(--bg-card); padding: 25px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
 .movest_titulo { color: var(--primary-color); margin: 0 0 5px 0; font-size: 1.2rem; }

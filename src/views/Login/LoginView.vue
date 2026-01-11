@@ -1,8 +1,7 @@
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios';
 import { useRouter } from 'vue-router';
-import api_erp from '@/services/api'; // Importa nosso serviço
+import { api_request } from '@/services/api_helper'; // Importa nosso serviço
 import Card from 'primevue/card';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
@@ -33,26 +32,39 @@ const realizar_login = async () => {
 
     try {
         // Chamada limpa
-        const resposta = await api_erp.post('/login', {
+        const resposta = await api_request('post', '/login', {
             login: login_usuario.value,
             password: senha_usuario.value
         });
 
-        localStorage.setItem('token_erp', resposta.data.access_token);
-        
-        // Redireciona
-        router.push('/dashboard');
+        // CORREÇÃO 1: Removemos o .data pois o helper já entrega o JSON puro
+        // Verifique se sua API retorna 'access_token' ou apenas 'token'
+        const token = resposta.access_token || resposta.token; 
+
+        if (token) {
+            localStorage.setItem('token_erp', token);
+            router.push('/dashboard');
+        } else {
+            // Caso a API retorne 200 OK mas sem token (ex: login falhou logicamente)
+            throw new Error('Token não retornado pela API.');
+        }
 
     } catch (erro) {
-        if (erro.response && erro.response.data) {
-            mensagem_erro.value = erro.response.data.mensagem || 'Credenciais inválidas.';
+        console.error("Erro no login:", erro); // Importante para debug
+
+        // CORREÇÃO 2: Adaptação do tratamento de erro
+        // O helper lança um Error padrão do JS, acessamos a mensagem em erro.message
+        if (erro.message && erro.message.includes('401')) {
+            mensagem_erro.value = 'E-mail ou senha incorretos.';
         } else {
-            mensagem_erro.value = 'Erro ao conectar com o servidor.';
+            // Tenta limpar a mensagem de erro caso venha suja do helper "Erro API: 400 - ..."
+            mensagem_erro.value = erro.message.replace('Erro API: ', '') || 'Erro ao conectar com o servidor.';
         }
     } finally {
         esta_carregando.value = false;
     }
 };
+
 </script>
 
 <template>

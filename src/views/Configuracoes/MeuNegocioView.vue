@@ -11,7 +11,11 @@
         </button>
     </div>
 
-    <div class="grid_lojas">
+    <div v-if="carregando && !matriz" class="loading_state">
+        <p>Carregando lojas...</p>
+    </div>
+
+    <div class="grid_lojas" v-else>
         
         <LojaCard 
             v-if="matriz" 
@@ -51,8 +55,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-// MUDANÇA 1: Importamos nossa instância configurada em vez do axios puro
-import api from '../../services/api'; // Ajuste o caminho se necessário (ex: '@/services/api')
+import { api_request } from '@/services/api_helper'; // Ajuste o caminho se necessário
 import LojaCard from './Components/LojaCard.vue';
 import PasswordModal from './Components/PasswordModal.vue';
 
@@ -61,17 +64,16 @@ const filiais = ref([]);
 const carregando = ref(false);
 const modal_aberto = ref(false);
 const loja_alvo = ref(null);
-
-// ESTADO DA LOJA ATIVA
 const loja_ativa_id = ref(null);
 
 const carregar_dados = async () => {
     carregando.value = true;
     try {
-        // MUDANÇA 2: URL limpa e sem headers manuais
-        const res = await api.get('/minhas-lojas');
+        const res = await api_request('get', '/minhas-lojas');
+        
+        console.log('Dados recebidos:', res); // Debug
 
-        // Helper para formatar dados vindos da API
+        // Helper para formatar dados
         const formatar = (l) => ({ 
             id: l.id,
             nome_fantasia: l.nome_fantasia,
@@ -81,10 +83,17 @@ const carregar_dados = async () => {
             bloqueado: true 
         });
 
-        if (res.data.matriz) matriz.value = formatar(res.data.matriz);
-        if (res.data.filiais) filiais.value = res.data.filiais.map(formatar);
+        // --- CORREÇÃO AQUI ---
+        // Removemos o ".data" pois api_request já retorna o objeto limpo
+        if (res && res.matriz) {
+            matriz.value = formatar(res.matriz);
+        }
 
-        // --- LÓGICA DO CONTEXTO (RECUPERAR LOJA SELECIONADA) ---
+        if (res && res.filiais) {
+            filiais.value = res.filiais.map(formatar);
+        }
+
+        // Recuperar contexto
         const salvo = localStorage.getItem('loja_ativa_id');
         if (salvo) {
             loja_ativa_id.value = parseInt(salvo);
@@ -104,7 +113,7 @@ const definir_loja_ativa = (id) => {
     localStorage.setItem('loja_ativa_id', id);
 };
 
-// --- LÓGICA DE CADEADO E SALVAR ---
+// --- LÓGICA DE BLOQUEIO ---
 const tentar_desbloquear = (loja) => {
     if (!loja.bloqueado) { loja.bloqueado = true; return; }
     loja_alvo.value = loja;
@@ -113,9 +122,7 @@ const tentar_desbloquear = (loja) => {
 
 const verificar_senha_api = async (senha) => {
     try {
-        // MUDANÇA 3: Chamada limpa
-        await api.post('/verificar-senha', { password: senha });
-        
+        await api_request('post', '/verificar-senha', { password: senha });
         if (loja_alvo.value) loja_alvo.value.bloqueado = false;
         modal_aberto.value = false;
     } catch (error) { 
@@ -145,8 +152,7 @@ const salvar_tudo = async () => {
 };
 
 const update_api = async (loja) => {
-    // MUDANÇA 4: URL limpa
-    await api.put(`/lojas/${loja.id}`, {
+    await api_request('put', `/lojas/${loja.id}`, {
         nome_fantasia: loja.nome_fantasia,
         documento: loja.documento,
         telefone: loja.telefone,
@@ -171,4 +177,5 @@ onMounted(carregar_dados);
 .btn_salvar:disabled { opacity: 0.7; }
 .card_adicionar { border: 2px dashed var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0.7; min-height: 250px; font-weight: bold; color: var(--text-secondary); background: var(--bg-card); }
 .card_adicionar:hover { border-color: var(--primary-color); color: var(--primary-color); opacity: 1; }
+.loading_state { text-align: center; padding: 40px; color: var(--text-secondary); }
 </style>

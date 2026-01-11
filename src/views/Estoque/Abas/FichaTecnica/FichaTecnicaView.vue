@@ -51,7 +51,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import IngredientesView from './SubAbas/IngredientesView.vue';
 import MaquinasView from './SubAbas/MaquinasView.vue';
 import PrecificacaoView from './SubAbas/PrecificacaoView.vue';
@@ -67,18 +67,35 @@ const dados_ficha = reactive({
     maquinas: [], 
     total_ingredientes: 0, 
     total_operacional: 0,
-    preco_venda: 0 // <--- NOVO CAMPO
+    preco_venda: 0 
 });
 
 const carregar_produtos_internos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
+    
+    // VERIFICAÇÃO DE SEGURANÇA
+    if (!lojaId) {
+        console.error("⛔ ERRO: ID da Loja não encontrado no LocalStorage.");
+        return;
+    }
+
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
+        // CORREÇÃO AQUI: Use apenas '/produtos' em vez da URL completa
+        const res = await api_request('get', '/produtos', { 
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
-        lista_produtos_internos.value = res.data.filter(p => p.tipo_item === 'INTERNO');
-    } catch (e) { console.error(e); }
+
+        console.log("📦 Resposta API:", res);
+
+        let lista_bruta = [];
+        if (Array.isArray(res)) lista_bruta = res;
+        else if (res.data && Array.isArray(res.data)) lista_bruta = res.data;
+
+        // Filtra os produtos
+        lista_produtos_internos.value = lista_bruta.filter(p => p.tipo_item === 'INTERNO');
+
+    } catch (e) { console.error("Erro ao buscar produtos:", e); }
 };
 
 const carregar_dados_completos_ficha = async () => {
@@ -92,24 +109,22 @@ const carregar_dados_completos_ficha = async () => {
     
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get(`http://127.0.0.1:8000/api/produtos/${produto_id.value}/ficha`, {
+        const res = await api_request('get', `/produtos/${produto_id.value}/ficha`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
 
-        // 1. Preço de Venda
-        if (res.data.produto) {
-            dados_ficha.preco_venda = parseFloat(res.data.produto.preco_venda) || 0;
+        // CORREÇÃO: Removido .data nas linhas abaixo
+        if (res.produto) {
+            dados_ficha.preco_venda = parseFloat(res.produto.preco_venda) || 0;
         }
 
-        // 2. Ingredientes
-        dados_ficha.ingredientes = res.data.ingredientes.map(i => ({
+        dados_ficha.ingredientes = res.ingredientes.map(i => ({
             ...i,
             subtotal: parseFloat(i.custo_unitario) * parseFloat(i.qtd)
         }));
 
-        // 3. Máquinas (Envia zerado, mas o componente MaquinasView vai recalcular)
-        dados_ficha.maquinas = res.data.maquinas.map(m => ({
+        dados_ficha.maquinas = res.maquinas.map(m => ({
             ...m,
             custo_energia: 0, 
             custo_depreciacao: 0, 
@@ -133,7 +148,10 @@ const executar_salvamento = async (dadosPrecificacao) => {
     };
 
     try {
-        await axios.put(`http://127.0.0.1:8000/api/produtos/${produto_id.value}/ficha`, payload, {
+        console.log("💾 Salvando Ficha para Produto ID:", produto_id.value);
+        
+        // CORREÇÃO: Uso de CRASE (`) para interpolar a variável ${produto_id.value}
+        await api_request('put', `/produtos/${produto_id.value}/ficha`, payload, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
 
@@ -141,6 +159,7 @@ const executar_salvamento = async (dadosPrecificacao) => {
         emit('voltar-estoque');
 
     } catch (e) {
+        console.error(e);
         alert('Erro ao salvar: ' + (e.response?.data?.mensagem || e.message));
     }
 };

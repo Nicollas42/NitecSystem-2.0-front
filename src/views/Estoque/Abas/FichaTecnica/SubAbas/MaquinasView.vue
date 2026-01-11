@@ -167,7 +167,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 
 const props = defineProps(['lista']);
 const emit = defineEmits(['atualizar-total']);
@@ -187,13 +187,33 @@ const formatar_tipo = (tipo) => {
 
 const buscar_equipamentos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id'); 
+    
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/equipamentos', {
+        console.log("🔍 Buscando equipamentos para loja:", lojaId);
+
+        // Usa a URL curta '/equipamentos' para o api_helper montar o resto
+        const res = await api_request('get', '/equipamentos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId } 
         });
-        lista_equipamentos_db.value = res.data;
-    } catch (e) { console.error(e); }
+
+        console.log("📦 Resposta Bruta (Equipamentos):", res);
+
+        let lista_final = [];
+
+        // Verifica se veio array direto ou encapsulado em .data
+        if (Array.isArray(res)) {
+            lista_final = res;
+        } else if (res.data && Array.isArray(res.data)) {
+            lista_final = res.data;
+        } else {
+            console.warn("⚠️ Formato inesperado de equipamentos:", res);
+        }
+
+        lista_equipamentos_db.value = lista_final;
+        console.log("✅ Lista Atualizada:", lista_equipamentos_db.value);
+
+    } catch (e) { console.error("Erro ao buscar equipamentos:", e); }
 };
 
 const salvar_no_banco = async () => {
@@ -205,7 +225,8 @@ const salvar_no_banco = async () => {
         depreciacao_mensal: parseFloat(calc_deprec_mensal.value)
     };
     try {
-        await axios.post('http://127.0.0.1:8000/api/equipamentos', payload, {
+        // 🔴 CORREÇÃO AQUI: De URL completa para '/equipamentos'
+        await api_request('post', '/equipamentos', payload, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
         alert('Salvo com Sucesso!');
@@ -243,8 +264,6 @@ const calcular_custos = (maquina, minutos) => {
         custo_operacional = kwh * tarifas.value.energia;
     } 
     else if (maquina.tipo_energia === 'GAS') {
-        // CORREÇÃO: Garante que pega o campo certo e trata valor nulo
-        // Se vier do banco é 'consumo_gas', se vier do form é 'consumo_gas_kg_h'
         const consumo = parseFloat(maquina.consumo_gas || maquina.consumo_gas_kg_h || 0);
         const kg_gas = consumo * horas;
         custo_operacional = kg_gas * tarifas.value.gas;
@@ -283,8 +302,8 @@ const adicionar_uso = () => {
         nome: maquina.nome,
         tipo_energia: maquina.tipo_energia, 
         potencia_watts: maquina.potencia_watts, 
-        consumo_gas: maquina.consumo_gas || maquina.consumo_gas_kg_h, // Salva o valor correto
-        consumo_gas_kg_h: maquina.consumo_gas || maquina.consumo_gas_kg_h, // Fallback
+        consumo_gas: maquina.consumo_gas || maquina.consumo_gas_kg_h, 
+        consumo_gas_kg_h: maquina.consumo_gas || maquina.consumo_gas_kg_h,
         depreciacao_hora: maquina.depreciacao_hora,
         valor_aquisicao: maquina.valor_aquisicao,
         valor_residual: maquina.valor_residual,

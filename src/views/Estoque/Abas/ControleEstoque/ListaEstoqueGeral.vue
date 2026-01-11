@@ -95,7 +95,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 
 const lista_geral = ref([]);
 const busca = ref('');
@@ -117,26 +117,31 @@ const calcular_situacao_validade = (dataValidade) => {
 };
 
 const lista_filtrada_geral = computed(() => {
-    if(!busca.value) return lista_geral.value;
+    // Garante que lista_geral é um array
+    const lista = Array.isArray(lista_geral.value) ? lista_geral.value : [];
+    
+    if(!busca.value) return lista;
     const termo = busca.value.toLowerCase();
     
-    return lista_geral.value.filter(p => 
+    return lista.filter(p => 
         p.produto_nome.toLowerCase().includes(termo) ||
         String(p.prod_id).includes(termo) ||
         (p.codigo_barras && p.codigo_barras.includes(termo)) ||
         (p.codigo_balanca && String(p.codigo_balanca).includes(termo)) ||
         p.filial_nome.toLowerCase().includes(termo) ||
-        (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo)) // Filtra também por fornecedor
+        (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo))
     );
 });
 
 const carregar_estoque_geral = async () => {
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/estoque-geral', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
-        lista_geral.value = res.data;
-    } catch (e) { console.error(e); }
+        // CORREÇÃO: Removida URL completa e headers manuais
+        const res = await api_request('get', '/estoque-geral');
+        
+        // CORREÇÃO: Atribuição direta
+        lista_geral.value = res || [];
+
+    } catch (e) { console.error("Erro ao carregar estoque geral:", e); }
 };
 
 onMounted(carregar_estoque_geral);
