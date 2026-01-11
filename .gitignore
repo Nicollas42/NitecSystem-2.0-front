@@ -1,4 +1,13 @@
-# Logs
+# --- ARQUIVOS DE AMBIENTE (Segurança Máxima) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Exceção: Mantemos o exemplo para outros devs saberem o que configurar
+!.env.example
+
+# --- Logs ---
 logs
 *.log
 npm-debug.log*
@@ -7,6 +16,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# --- Dependências e Builds ---
 node_modules
 .DS_Store
 dist
@@ -14,7 +24,7 @@ dist-ssr
 coverage
 *.local
 
-# Editor directories and files
+# --- Editor directories and files ---
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -25,12 +35,9 @@ coverage
 *.sw?
 
 *.tsbuildinfo
-
 .eslintcache
 
-# Cypress
+# --- Cypress & Testes ---
 /cypress/videos/
 /cypress/screenshots/
-
-# Vitest
 __screenshots__/
