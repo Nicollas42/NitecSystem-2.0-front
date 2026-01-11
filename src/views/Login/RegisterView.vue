@@ -1,3 +1,71 @@
+<script setup>
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+// MUDANÇA 1: Importar a API centralizada
+import api from '@/services/api'; 
+
+const router = useRouter();
+const carregando = ref(false);
+
+const form = ref({
+    nome: '',
+    cpf: '',
+    celular: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+    empresa: {
+        nome_fantasia: '',
+        cnpj: '',
+        telefone: '',
+        endereco: ''
+    },
+    filiais: [] 
+});
+
+const adicionar_filial = () => {
+    form.value.filiais.push({ nome: '', cnpj: '', endereco: '' });
+};
+
+const remover_filial = (index) => {
+    form.value.filiais.splice(index, 1);
+};
+
+const realizar_cadastro = async () => {
+    if (form.value.password !== form.value.password_confirmation) {
+        return alert("As senhas não conferem!");
+    }
+
+    carregando.value = true;
+    try {
+        // MUDANÇA 2: Chamada limpa (sem http://localhost...)
+        const res = await api.post('/cadastrar', form.value);
+        
+        alert("Cadastro realizado com sucesso! Bem-vindo.");
+        
+        // Salva o token para o usuário já entrar logado
+        localStorage.setItem('token_erp', res.data.token);
+        router.push('/dashboard'); 
+        
+    } catch (error) {
+        console.error("Erro completo:", error);
+        
+        if (error.response && error.response.status === 422) {
+            const erros = error.response.data.errors;
+            let mensagemErro = "⚠️ Erro de Validação:\n";
+            Object.keys(erros).forEach(campo => {
+                mensagemErro += `• ${campo}: ${erros[campo][0]}\n`;
+            });
+            alert(mensagemErro);
+        } else {
+            alert("Erro ao cadastrar: " + (error.response?.data?.message || error.message));
+        }
+    } finally {
+        carregando.value = false;
+    }
+};
+</script>
+
 <template>
   <div class="register_container">
     <div class="card_register">
@@ -110,89 +178,10 @@
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue';
-import axios from 'axios';
-import { useRouter } from 'vue-router';
-
-const router = useRouter();
-const carregando = ref(false);
-
-const form = ref({
-    nome: '',
-    cpf: '',
-    celular: '', // Novo
-    email: '',
-    password: '',
-    password_confirmation: '',
-    empresa: {
-        nome_fantasia: '',
-        cnpj: '',
-        telefone: '',
-        endereco: '' // Novo
-    },
-    filiais: [] 
-});
-
-const adicionar_filial = () => {
-    // Adiciona objeto vazio com campo de endereço
-    form.value.filiais.push({ nome: '', cnpj: '', endereco: '' });
-};
-
-const remover_filial = (index) => {
-    form.value.filiais.splice(index, 1);
-};
-
-const realizar_cadastro = async () => {
-    if (form.value.password !== form.value.password_confirmation) {
-        return alert("As senhas não conferem!");
-    }
-
-    carregando.value = true;
-    try {
-        const res = await axios.post('http://127.0.0.1:8000/api/cadastrar', form.value);
-        
-        alert("Cadastro realizado com sucesso! Bem-vindo.");
-        
-        localStorage.setItem('token_erp', res.data.token);
-        router.push('/dashboard'); 
-        
-    } catch (error) {
-        console.error("Erro completo:", error);
-        
-        // Tratamento específico para erro 422 (Validação do Laravel)
-        if (error.response && error.response.status === 422) {
-            const erros = error.response.data.errors; // Objeto com os erros
-            let mensagemErro = "⚠️ Erro de Validação:\n";
-            
-            // Lista cada campo que deu erro
-            Object.keys(erros).forEach(campo => {
-                mensagemErro += `• ${campo}: ${erros[campo][0]}\n`;
-            });
-            
-            alert(mensagemErro);
-        } else {
-            // Outros erros (500, 404, etc)
-            alert("Erro ao cadastrar: " + (error.response?.data?.message || error.message));
-        }
-    } finally {
-        carregando.value = false;
-    }
-};
-
-</script>
-
 <style scoped>
-/* MESMO CSS DE ANTES */
-.register_container {
-    min-height: 100vh;
-    display: flex; justify-content: center; align-items: center;
-    background-color: #f3f4f6; padding: 20px; font-family: 'Segoe UI', sans-serif;
-}
-.card_register {
-    background: white; width: 100%; max-width: 650px;
-    padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
+/* MANTER O MESMO CSS DO ARQUIVO ORIGINAL */
+.register_container { min-height: 100vh; display: flex; justify-content: center; align-items: center; background-color: #f3f4f6; padding: 20px; font-family: 'Segoe UI', sans-serif; }
+.card_register { background: white; width: 100%; max-width: 650px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .header_register { text-align: center; margin-bottom: 30px; }
 .header_register h2 { color: #1f2937; margin-bottom: 5px; }
 .header_register p { color: #6b7280; font-size: 14px; }
@@ -201,9 +190,7 @@ const realizar_cadastro = async () => {
 .secao_form.destaque { background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px dashed #d1d5db; }
 .grupo_input { margin-bottom: 10px; display: flex; flex-direction: column; }
 .grupo_input label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-.input_padrao {
-    padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px; outline: none; width: 100%; box-sizing: border-box;
-}
+.input_padrao { padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px; outline: none; width: 100%; box-sizing: border-box; }
 .input_padrao:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1); }
 .linha_dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .cabecalho_filiais { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -213,10 +200,7 @@ const realizar_cadastro = async () => {
 .btn_remover { color: #ef4444; background: none; border: none; cursor: pointer; font-size: 11px; text-decoration: underline; }
 .ajuda { font-size: 12px; color: #9ca3af; margin-bottom: 10px; font-style: italic; }
 .acoes_form { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
-.btn_cadastrar {
-    background-color: #4f46e5; color: white; padding: 12px; border: none; border-radius: 6px;
-    font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s;
-}
+.btn_cadastrar { background-color: #4f46e5; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
 .btn_cadastrar:hover { background-color: #4338ca; }
 .btn_cadastrar:disabled { opacity: 0.7; cursor: not-allowed; }
 .link_voltar { text-align: center; color: #6b7280; text-decoration: none; font-size: 14px; }
