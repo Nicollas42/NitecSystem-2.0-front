@@ -63,7 +63,11 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue';
-import axios from 'axios';
+// CORREÇÃO 1: Importar o api_request e remover axios
+import { api_request } from '@/services/api_helper'; 
+
+// Ajuste o caminho do import acima se a pasta components estiver em src/components
+// Se api_helper.js estiver em src/, o caminho '../api_helper' está correto.
 
 const props = defineProps(['visivel', 'dadosEdicao']);
 const emit = defineEmits(['update:visivel', 'salvo']);
@@ -75,7 +79,6 @@ const form = reactive({
     telefone: '', vendedor_nome: '', vendedor_telefone: ''
 });
 
-// Monitora abertura para preencher (edição) ou limpar (novo)
 watch(() => props.visivel, (val) => {
     if (val) {
         if (props.dadosEdicao) {
@@ -111,7 +114,8 @@ const salvar = async () => {
     if (!form.nome_fantasia) return alert("Nome Fantasia é obrigatório");
 
     try {
-        let url = 'http://127.0.0.1:8000/api/fornecedores';
+        // CORREÇÃO 2: Usar URL relativa e lógica do api_request
+        let url = '/fornecedores';
         let method = 'post';
 
         if (form.id) {
@@ -119,15 +123,15 @@ const salvar = async () => {
             method = 'put';
         }
 
-        const res = await axios[method](url, form, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        // CORREÇÃO 3: Chamada limpa (sem headers manuais)
+        const res = await api_request(method, url, form);
         
-        emit('salvo', res.data);
+        // O api_request já devolve o objeto limpo, não precisa de .data
+        emit('salvo', res);
         mostrarSucesso.value = true;
 
     } catch (e) {
-        alert("Erro: " + (e.response?.data?.message || e.message));
+        alert("Erro: " + e.message);
     }
 };
 </script>

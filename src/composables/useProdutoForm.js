@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper'; // Ajuste o caminho conforme onde este arquivo está (src/composables/...)
 
 export function useProdutoForm() {
     
@@ -12,21 +12,17 @@ export function useProdutoForm() {
         imagem_path_banco: null, imagem_arquivo_raw: null
     });
 
-    // Lógica de preenchimento (Edição vs Novo)
     const inicializarFormulario = (produtoEdicao) => {
         if (produtoEdicao) {
-            // Mapeia os campos do objeto vindo do banco para o form
             form.value = {
-                ...form.value, // Mantém defaults
-                ...produtoEdicao, // Sobrescreve com dados do banco
+                ...form.value, 
+                ...produtoEdicao,
                 estoque_infinito: produtoEdicao.estoque_infinito == 1 || produtoEdicao.estoque_infinito == true,
                 imagem_path_banco: produtoEdicao.imagem_path,
                 imagem_arquivo_raw: null
             };
-            // Tratamento especial para nulos
             if(!form.value.categoria) form.value.categoria = 'Outros';
         } else {
-            // Reset total
             form.value = { 
                 id: '', tipo_item: 'REVENDA', nome: '', categoria: 'Outros',
                 fornecedor_id: null, codigo_barras: '', codigo_balanca: '', 
@@ -38,15 +34,13 @@ export function useProdutoForm() {
         }
     };
 
-    // Lógica de Envio (FormData)
     const prepararFormData = (lojaId) => {
         let formData = new FormData();
-        formData.append('loja_id', lojaId);
+        // Garante que loja_id vá como string se existir
+        if (lojaId) formData.append('loja_id', lojaId);
         
-        // Loop simples para adicionar tudo que não for arquivo ou especial
         for (const key in form.value) {
-            if (key !== 'imagem_arquivo_raw' && key !== 'imagem_path_banco' && form.value[key] !== null) {
-                // Converte booleano para 1/0
+            if (key !== 'imagem_arquivo_raw' && key !== 'imagem_path_banco' && form.value[key] !== null && form.value[key] !== undefined) {
                 if (key === 'estoque_infinito') {
                     formData.append(key, form.value[key] ? '1' : '0');
                 } else {
@@ -63,17 +57,21 @@ export function useProdutoForm() {
     };
 
     const salvarProduto = async (lojaId, isEdicao) => {
+        if (!lojaId) throw new Error("ID da Loja não identificado. Selecione uma loja primeiro.");
+
         const formData = prepararFormData(lojaId);
-        let url = 'http://127.0.0.1:8000/api/produtos';
+        let url = '/produtos';
         
         if (isEdicao) {
             url += `/${form.value.id}`;
+            // Laravel exige POST com _method=PUT para upload de arquivos em edição
             formData.append('_method', 'PUT');
         }
 
-        await axios.post(url, formData, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}`, 'Content-Type': 'multipart/form-data' }
-        });
+        // CORREÇÃO:
+        // 1. Enviamos sempre como 'post' (por causa do FormData/Laravel)
+        // 2. Não passamos headers manuais, o helper cuida disso
+        await api_request('post', url, formData);
     };
 
     return {

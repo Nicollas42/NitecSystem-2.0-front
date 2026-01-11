@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 // Importação da nossa instância configurada
-import api_erp from '@/services/api';
+import { api_request } from '@/services/api_helper';
 
 // Componentes PrimeVue
 import Card from 'primevue/card';
@@ -54,7 +54,7 @@ const salvar_nova_senha = async () => {
 
     try {
         // Rota relativa no backend
-        await api_erp.post('/redefinir-senha-final', {
+        await api_request('post', '/redefinir-senha-final', {
             token: token_url.value,
             email: email_url.value,
             password: nova_senha.value,

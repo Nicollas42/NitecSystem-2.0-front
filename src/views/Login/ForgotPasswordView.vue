@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 // Importação da nossa instância configurada
-import api_erp from '@/services/api';
+import { api_request } from '@/services/api_helper';
 
 // Componentes PrimeVue
 import Card from 'primevue/card';
@@ -30,7 +30,7 @@ const solicitar_reset = async () => {
     try {
         // Chamada limpa usando a rota relativa
         // O baseURL do api.js já cuida do http://...
-        const resposta = await api_erp.post('/esqueci-senha', {
+        const resposta = await api_request('post', '/esqueci-senha', {
             email: email_recuperacao.value
         });
 

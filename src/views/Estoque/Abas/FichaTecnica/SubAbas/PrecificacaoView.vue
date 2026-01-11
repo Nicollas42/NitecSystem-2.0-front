@@ -115,7 +115,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 
 const props = defineProps(['produto_id', 'custo_ingredientes', 'custo_operacional']);
 const emit = defineEmits(['salvar-completo']);
@@ -132,12 +132,13 @@ const carregar_dados_produto = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
+        const res = await api_request('get', '/produtos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
         
-        const produto = res.data.find(p => p.id === props.produto_id);
+        // CORREÇÃO: Removido .data
+        const produto = res.find(p => p.id === props.produto_id);
         if (produto) {
             // CAPTURA A UNIDADE PARA AJUSTAR O VISUAL
             unidade_produto.value = produto.unidade_medida || 'UN';

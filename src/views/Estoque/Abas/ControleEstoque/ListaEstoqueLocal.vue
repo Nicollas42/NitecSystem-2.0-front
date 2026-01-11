@@ -137,7 +137,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import CadastroProduto from './CadastroProduto.vue';
 import PasswordModal from '../../../Configuracoes/Components/PasswordModal.vue'; 
 
@@ -165,17 +165,15 @@ const calcular_situacao_validade = (dataValidade) => {
     return { dias, label: '🟢 OK', classe: 'status_ok' };
 };
 
-// Lógica para detectar lotes repetidos (mesmo produto) e agrupar visualmente
 const verifica_agrupamento = (prod, index) => {
     if (index === 0) return false;
     const anterior = lista_filtrada.value[index - 1];
-    // Se no futuro a API retornar múltiplas linhas com mesmo ID de produto (lotes),
-    // isso garantirá que eles fiquem "grudados"
     return anterior && anterior.id === prod.id; 
 };
 
 const lista_filtrada = computed(() => {
-    let lista = lista_produtos.value;
+    // Garante array
+    let lista = Array.isArray(lista_produtos.value) ? lista_produtos.value : [];
 
     if (filtro_origem.value === 'local') {
         lista = lista.filter(p => p.tem_cadastro == 1);
@@ -196,7 +194,7 @@ const lista_filtrada = computed(() => {
             String(p.id).includes(termo) ||
             (p.codigo_barras && p.codigo_barras.includes(termo)) ||
             (p.codigo_balanca && String(p.codigo_balanca).includes(termo)) ||
-            (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo)) // Filtra por fornecedor
+            (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo))
         );
     }
     return lista;
@@ -206,11 +204,12 @@ const carregar_produtos_locais = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     if (!lojaId) return;
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
+        // CORREÇÃO: Chamada limpa
+        const res = await api_request('get', '/produtos', {
             params: { loja_id: lojaId }
         });
-        lista_produtos.value = res.data;
+        // CORREÇÃO: Atribuição direta
+        lista_produtos.value = res || [];
     } catch (e) { console.error(e); }
 };
 
@@ -226,9 +225,7 @@ const iniciar_edicao = (prod) => {
 
 const senha_confirmada = async (senha) => {
     try {
-        await axios.post('http://127.0.0.1:8000/api/verificar-senha', { password: senha }, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        await api_request('post', '/verificar-senha', { password: senha });
         modal_senha_aberto.value = false;
         id_editando.value = prod_para_editar.value.id;
         prod_para_editar.value = null;

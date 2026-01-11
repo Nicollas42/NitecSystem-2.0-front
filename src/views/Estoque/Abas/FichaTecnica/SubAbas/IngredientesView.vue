@@ -102,7 +102,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import { useBuscaProduto } from '@/composables/useBuscaProduto';
 
 const props = defineProps(['lista']); 
@@ -125,11 +125,12 @@ const {
 const carregar_insumos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
+        const res = await api_request('get', '/produtos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
-        lista_insumos_db.value = res.data.filter(p => p.tipo_item === 'INSUMOS');
+        // CORREÇÃO: Removido .data
+        lista_insumos_db.value = res.filter(p => p.tipo_item === 'INSUMOS');
     } catch (e) { console.error("Erro ao buscar insumos", e); }
 };
 

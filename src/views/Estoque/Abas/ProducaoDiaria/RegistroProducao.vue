@@ -114,7 +114,7 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 
 const lista_produtos = ref([]);
 const produto_selecionado_id = ref('');
@@ -138,11 +138,19 @@ const formatar_inteligente = (valor, unidade) => {
 const carregar_lista_produtos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
+        // CORREÇÃO: URL curta
+        const res = await api_request('get', '/produtos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
-        lista_produtos.value = res.data.filter(p => p.tipo_item === 'INTERNO');
+        
+        // CORREÇÃO: Blindagem contra formato de resposta (removemos .data)
+        let lista = [];
+        if (Array.isArray(res)) lista = res;
+        else if (res.data && Array.isArray(res.data)) lista = res.data;
+
+        lista_produtos.value = lista.filter(p => p.tipo_item === 'INTERNO');
+
     } catch (e) { console.error(e); }
 };
 
@@ -158,16 +166,19 @@ const carregar_ficha = async () => {
     }
 
     try {
-        const res = await axios.get(`http://127.0.0.1:8000/api/produtos/${produto_selecionado_id.value}/ficha`, {
+        // CORREÇÃO: URL curta e uso de crase (template string)
+        const res = await api_request('get', `/produtos/${produto_selecionado_id.value}/ficha`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
         
-        ingredientes_base.value = res.data.ingredientes.map(i => ({
+        // CORREÇÃO: Removemos .data, pois o endpoint retorna { produto, ingredientes, maquinas }
+        const listaIngredientes = res.ingredientes || [];
+
+        ingredientes_base.value = listaIngredientes.map(i => ({
             ...i,
             qtd_base: parseFloat(i.qtd),
             estoque_atual: parseFloat(i.estoque_atual) || 0,
-            // Garante que é booleano
             estoque_infinito: i.estoque_infinito == 1 || i.estoque_infinito == true 
         }));
     } catch (e) { console.error(e); }
@@ -179,14 +190,12 @@ const fator_multiplicador = computed(() => {
     return qtd / rendimento_base.value;
 });
 
-// --- AQUI ESTAVA O ERRO, CORRIGIDO ABAIXO ---
 const ingredientes_calculados = computed(() => {
     const fator = fator_multiplicador.value;
     
     return ingredientes_base.value.map(ing => {
         const necessaria = ing.qtd_base * fator;
         
-        // CORREÇÃO: Usando nomes consistentes
         const isInfinito = ing.estoque_infinito; 
         const falta = isInfinito ? 0 : (necessaria - ing.estoque_atual);
         
@@ -194,7 +203,7 @@ const ingredientes_calculados = computed(() => {
             ...ing,
             qtd_calculada: necessaria,
             saldo_insuficiente: !isInfinito && (falta > 0.0001),
-            eh_infinito: isInfinito // Agora passa corretamente para o template
+            eh_infinito: isInfinito 
         };
     });
 });
@@ -208,8 +217,8 @@ const registrar_producao_real = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     
     try {
-        // CORREÇÃO: Rota correta /api/producao/registrar
-        await axios.post('http://127.0.0.1:8000/api/producao/registrar', { 
+        // CORREÇÃO: URL curta
+        await api_request('post', '/producao/registrar', { 
             loja_id: lojaId,
             produto_id: produto_selecionado_id.value,
             quantidade: qtd_producao.value

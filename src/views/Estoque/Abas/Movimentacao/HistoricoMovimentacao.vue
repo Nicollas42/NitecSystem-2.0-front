@@ -91,9 +91,9 @@
 
 <script setup>
 import { ref, onMounted, watch, reactive } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import BuscaProdutoInput from '@/components/BuscaProdutoInput.vue';
-import ModalLeitura from '@/components/ModalLeitura.vue'; // <--- IMPORTAR
+import ModalLeitura from '@/components/ModalLeitura.vue'; 
 
 const lista_produtos = ref([]);
 const historico = ref([]);
@@ -106,11 +106,7 @@ const filtros = ref({
     produto_id: ''
 });
 
-// Estado do Modal
-const modalObs = reactive({
-    aberto: false,
-    texto: ''
-});
+const modalObs = reactive({ aberto: false, texto: '' });
 
 watch(texto_busca, (val) => {
     if (!val) filtros.value.produto_id = '';
@@ -119,11 +115,13 @@ watch(texto_busca, (val) => {
 const carregar_produtos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
+        const res = await api_request('get', '/produtos', {
             params: { loja_id: lojaId }
         });
-        lista_produtos.value = res.data;
+        // CORREÇÃO: Removemos .data
+        if (Array.isArray(res)) lista_produtos.value = res;
+        else if (res.data && Array.isArray(res.data)) lista_produtos.value = res.data;
+        else lista_produtos.value = [];
     } catch (e) { console.error(e); }
 };
 
@@ -134,14 +132,16 @@ const selecionar_produto = (prod) => {
 const buscar_historico = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/movimentacao/historico', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
+        const res = await api_request('get', '/movimentacao/historico', {
             params: { 
                 loja_id: lojaId,
                 ...filtros.value
             }
         });
-        historico.value = res.data;
+        // CORREÇÃO: Removemos .data
+        if (Array.isArray(res)) historico.value = res;
+        else if (res.data && Array.isArray(res.data)) historico.value = res.data;
+        else historico.value = [];
     } catch (e) { console.error(e); }
 };
 
@@ -150,7 +150,6 @@ const formatar_data = (dataIso) => {
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
-// --- NOVAS FUNÇÕES ---
 const truncarTexto = (texto) => {
     if (!texto) return '---';
     if (texto.length > 40) {
@@ -193,7 +192,6 @@ onMounted(() => {
 .fluxo { font-family: monospace; color: var(--text-primary); }
 .aviso_vazio { padding: 30px; text-align: center; color: var(--text-secondary); font-style: italic; }
 
-/* ESTILO DA CÉLULA CLICÁVEL */
 .celula_clicavel { cursor: pointer; color: var(--text-secondary); font-style: italic; transition: color 0.2s; max-width: 250px; }
 .celula_clicavel:hover { color: var(--primary-color); text-decoration: underline; background: var(--hover-bg); }
 </style>

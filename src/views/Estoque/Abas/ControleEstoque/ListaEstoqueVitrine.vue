@@ -145,7 +145,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import CadastroProduto from './CadastroProduto.vue';
 import PasswordModal from '../../../Configuracoes/Components/PasswordModal.vue'; 
 
@@ -172,7 +172,6 @@ const calcular_situacao_validade = (dataValidade) => {
     return { dias, label: '🟢 OK', classe: 'status_ok' };
 };
 
-// Verifica agrupamento para lotes futuros
 const verifica_agrupamento = (prod, index) => {
     if (index === 0) return false;
     const anterior = lista_filtrada.value[index - 1];
@@ -180,7 +179,8 @@ const verifica_agrupamento = (prod, index) => {
 };
 
 const lista_filtrada = computed(() => {
-    let lista = lista_produtos.value;
+    // Garante que lista_produtos é array antes de filtrar
+    let lista = Array.isArray(lista_produtos.value) ? lista_produtos.value : [];
 
     if (filtro_origem.value === 'local') {
         lista = lista.filter(p => p.tem_cadastro == 1);
@@ -211,12 +211,15 @@ const carregar_vitrine = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     if (!lojaId) return;
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
+        // CORREÇÃO: Removida URL completa e headers manuais
+        const res = await api_request('get', '/produtos', {
             params: { loja_id: lojaId }
         });
-        lista_produtos.value = res.data;
-    } catch (e) { console.error(e); }
+        
+        // CORREÇÃO: Atribuição direta sem .data e garantia de array
+        lista_produtos.value = res || [];
+
+    } catch (e) { console.error("Erro ao carregar vitrine:", e); }
 };
 
 const iniciar_edicao = (prod) => {
@@ -231,9 +234,7 @@ const iniciar_edicao = (prod) => {
 
 const senha_confirmada = async (senha) => {
     try {
-        await axios.post('http://127.0.0.1:8000/api/verificar-senha', { password: senha }, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        await api_request('post', '/verificar-senha', { password: senha });
         modal_senha_aberto.value = false;
         id_editando.value = prod_para_editar.value.id;
         prod_para_editar.value = null;

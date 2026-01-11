@@ -64,7 +64,7 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 import BuscaProdutoInput from '@/components/BuscaProdutoInput.vue';
 
 const lista_produtos = ref([]);
@@ -79,11 +79,18 @@ const modais = reactive({
 const carregar_produtos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/produtos', {
+        // CORREÇÃO: URL Curta
+        const res = await api_request('get', '/produtos', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
-        lista_produtos.value = res.data.filter(p => p.tem_cadastro == 1);
+
+        // CORREÇÃO: Blindagem contra estrutura de resposta variável
+        let lista = [];
+        if (Array.isArray(res)) lista = res;
+        else if (res.data && Array.isArray(res.data)) lista = res.data;
+
+        lista_produtos.value = lista.filter(p => p.tem_cadastro == 1);
     } catch (e) { console.error(e); }
 };
 
@@ -106,7 +113,8 @@ const confirmar_perda_real = async () => {
     const payload = { ...form.value, loja_id: lojaId };
 
     try {
-        await axios.post('http://127.0.0.1:8000/api/movimentacao/registrar', payload, {
+        // CORREÇÃO: URL Curta
+        await api_request('post', '/movimentacao/registrar', payload, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
         });
         

@@ -31,18 +31,28 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { api_request } from '@/services/api_helper';
 
 const historico = ref([]);
 
 const carregar_historico = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await axios.get('http://127.0.0.1:8000/api/producao/historico', {
+        // CORREÇÃO: URL curta
+        const res = await api_request('get', '/producao/historico', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
             params: { loja_id: lojaId }
         });
-        historico.value = res.data;
+        
+        // CORREÇÃO: Blindagem. Se vier array direto, usa. Se vier em .data, usa.
+        if (Array.isArray(res)) {
+            historico.value = res;
+        } else if (res.data && Array.isArray(res.data)) {
+            historico.value = res.data;
+        } else {
+            historico.value = [];
+        }
+
     } catch (e) { console.error(e); }
 };
 
