@@ -33,6 +33,14 @@
         >
             🏭 Produção Diária
         </button>
+
+        <button 
+            :class="['botao_macro', { ativo: aba_macro === 'movimentacao' }]" 
+            @click="aba_macro = 'movimentacao'"
+        >
+            🚛 Movimentação Geral
+        </button>
+
         </div>
 
         <div class="area_conteudo">
@@ -44,6 +52,7 @@
             />
 
             <ProducaoDiariaView v-if="aba_macro === 'producao'" />
+            <MovimentacaoGeralView v-if="aba_macro === 'movimentacao'" />
         </div>
 
   </div>
@@ -57,6 +66,7 @@ import axios from 'axios';
 import TabEstoque from './Abas/TabEstoque.vue';
 import FichaTecnicaView from './Abas/FichaTecnica/FichaTecnicaView.vue';
 import ProducaoDiariaView from './Abas/ProducaoDiaria/ProducaoDiariaView.vue';
+import MovimentacaoGeralView from './Abas/Movimentacao/MovimentacaoGeralView.vue';
 
 const aba_macro = ref('estoque');
 const loja_ativa_nome = ref('');

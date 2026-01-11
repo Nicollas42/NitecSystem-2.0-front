@@ -28,7 +28,7 @@
             <tr>
               <th width="50" class="col_center">ID</th>
               <th class="col_left">Produto</th>
-              <th class="col_center">Custo</th>
+              <th class="col_left" width="180">Fornecedor</th> <th class="col_center">Custo</th>
               <th class="col_center">Venda</th>
               <th class="col_center" width="140">Validade</th>
               <th class="col_center">Depósito</th>
@@ -37,11 +37,12 @@
             </tr>
           </thead>
           <tbody>
-            <template v-for="prod in lista_filtrada" :key="prod.id">
+            <template v-for="(prod, idx) in lista_filtrada" :key="prod.id">
                 
                 <tr :class="{ 
                     'linha_ativa': id_editando === prod.id,
-                    'linha_fantasma': prod.tem_cadastro == 0 
+                    'linha_fantasma': prod.tem_cadastro == 0,
+                    'agrupamento_lote': verifica_agrupamento(prod, idx)
                 }">
                     <td class="texto_destaque col_center">#{{ prod.id }}</td>
                     
@@ -63,6 +64,16 @@
                         <div class="area_cat">
                             <span class="badge_cat">{{ prod.categoria }}</span>
                         </div>
+                    </td>
+
+                    <td>
+                        <div v-if="prod.fornecedor_nome" class="box_fornecedor">
+                            <div class="nome_fornecedor">{{ prod.fornecedor_nome }}</div>
+                            <div class="nome_vendedor" v-if="prod.vendedor_nome">
+                                👤 {{ prod.vendedor_nome }}
+                            </div>
+                        </div>
+                        <span v-else class="texto_vazio">--</span>
                     </td>
 
                     <td class="col_center texto_custo">R$ {{ formatar_valor(prod.preco_custo) }}</td>
@@ -97,8 +108,7 @@
                 </tr>
     
                 <tr v-if="id_editando === prod.id" class="linha_edicao">
-                    <td colspan="8">
-                        <div class="box_edicao_expandida">
+                    <td colspan="9"> <div class="box_edicao_expandida">
                             <p v-if="prod.tem_cadastro == 0" class="aviso_novo_cadastro">
                                 ✨ <strong>Ativar Produto:</strong> Este item existe na rede. Salve para trazê-lo para sua Vitrine.
                             </p>
@@ -142,7 +152,7 @@ import PasswordModal from '../../../Configuracoes/Components/PasswordModal.vue';
 const lista_produtos = ref([]);
 const busca = ref('');
 const filtro_origem = ref('local'); 
-const filtro_estoque = ref('com_estoque'); // Padrão: Vitrine Limpa (só o que tem saldo)
+const filtro_estoque = ref('com_estoque');
 const modal_senha_aberto = ref(false);
 const prod_para_editar = ref(null);
 const id_editando = ref(null);
@@ -162,33 +172,36 @@ const calcular_situacao_validade = (dataValidade) => {
     return { dias, label: '🟢 OK', classe: 'status_ok' };
 };
 
-// --- NOVA LÓGICA DE FILTRO (VITRINE) ---
+// Verifica agrupamento para lotes futuros
+const verifica_agrupamento = (prod, index) => {
+    if (index === 0) return false;
+    const anterior = lista_filtrada.value[index - 1];
+    return anterior && anterior.id === prod.id; 
+};
+
 const lista_filtrada = computed(() => {
     let lista = lista_produtos.value;
 
-    // 1. Filtro de Origem
     if (filtro_origem.value === 'local') {
         lista = lista.filter(p => p.tem_cadastro == 1);
     } else if (filtro_origem.value === 'externo') {
         lista = lista.filter(p => p.tem_cadastro == 0);
     }
 
-    // 2. Filtro de Estoque (VITRINE)
     if (filtro_estoque.value === 'com_estoque') {
         lista = lista.filter(p => parseFloat(p.estoque_vitrine) > 0);
     } else if (filtro_estoque.value === 'zerados') {
         lista = lista.filter(p => parseFloat(p.estoque_vitrine) <= 0);
     }
-    // 'todos' não filtra nada
 
-    // 3. Busca Texto
     if(busca.value) {
         const termo = busca.value.toLowerCase();
         lista = lista.filter(p => 
             p.nome.toLowerCase().includes(termo) ||
             String(p.id).includes(termo) ||
             (p.codigo_barras && p.codigo_barras.includes(termo)) ||
-            (p.codigo_balanca && String(p.codigo_balanca).includes(termo))
+            (p.codigo_balanca && String(p.codigo_balanca).includes(termo)) ||
+            (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo))
         );
     }
     return lista;
@@ -209,8 +222,6 @@ const carregar_vitrine = async () => {
 const iniciar_edicao = (prod) => {
     if (id_editando.value === prod.id) { id_editando.value = null; return; }
     prod_para_editar.value = prod;
-    
-    // Se for cadastro novo, pula senha
     if (prod.tem_cadastro == 0) {
         id_editando.value = prod.id;
     } else {
@@ -242,17 +253,14 @@ onMounted(carregar_vitrine);
 .titulo_area { display: flex; align-items: center; gap: 10px; }
 .controles_topo { display: flex; gap: 10px; align-items: center; }
 
-/* Selects */
 .select_filtro { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-primary); font-weight: 500; cursor: pointer; min-width: 160px; }
 .input_padrao { width: 200px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); }
 
-/* TABELA */
 .table_container { overflow-x: auto; }
 .tabela_produtos { width: 100%; border-collapse: collapse; min-width: 900px; }
 .tabela_produtos th { padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; }
 .tabela_produtos td { padding: 8px 10px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); font-size: 13px; vertical-align: middle; }
 
-/* VISUAL FANTASMA */
 .linha_fantasma { background-color: rgba(0,0,0,0.02); opacity: 0.6; filter: grayscale(0.8); }
 .linha_fantasma:hover { opacity: 1; filter: grayscale(0); background-color: white; transition: all 0.2s; }
 
@@ -271,18 +279,26 @@ onMounted(carregar_vitrine);
 .texto_destaque { color: var(--primary-color); font-weight: bold; }
 .texto_vazio { color: #ccc; font-size: 12px; }
 
-/* Validade */
 .box_validade { display: flex; flex-direction: column; align-items: center; padding: 4px; border-radius: 6px; width: 100px; margin: 0 auto; }
 .dias_restantes { font-weight: 800; font-size: 13px; }
 .status_validade { font-size: 10px; font-weight: 600; text-transform: uppercase; }
 .status_vencido { background: #fee2e2; color: #991b1b; } .status_critico { background: #fee2e2; color: #ef4444; } .status_atencao { background: #ffedd5; color: #c2410c; } .status_proximo { background: #fef9c3; color: #a16207; } .status_ok { background: #f0fdf4; color: #15803d; }
 
 .coluna_vitrine_ativa { background: #fffbeb; color: #d97706; font-weight: bold; border-radius: 4px; }
-.estoque_zerado { color: #9ca3af; font-weight: normal; } /* Cinza se zerado */
+.estoque_zerado { color: #9ca3af; font-weight: normal; } 
 
 .unidade { font-size: 10px; color: #999; margin-left: 2px; }
 .botao_acao { border: 1px solid var(--border-color); background: none; padding: 5px; border-radius: 4px; cursor: pointer; }
 .linha_ativa { background: rgba(59, 130, 246, 0.05); opacity: 1 !important; filter: none !important; }
 .box_edicao_expandida { background: white; border-bottom: 2px solid #d97706; padding: 15px; }
 .aviso_vazio { text-align: center; padding: 30px; color: var(--text-secondary); }
+
+/* --- NOVOS ESTILOS --- */
+.box_fornecedor { line-height: 1.2; }
+.nome_fornecedor { font-weight: 600; color: var(--text-primary); font-size: 13px; }
+.nome_vendedor { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+.agrupamento_lote td { border-top: none !important; padding-top: 2px; }
+.agrupamento_lote { background-color: #fffaf0; } /* Amarelado leve na vitrine */
+.agrupamento_lote td:first-child { border-left: 3px solid #d97706; }
 </style>
