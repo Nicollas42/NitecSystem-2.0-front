@@ -65,11 +65,11 @@
                     
                     <td 
                         class="celula_clicavel" 
-                        @click="abrir_modal_observacao(item.motivo)"
-                        title="Clique para ler completo"
+                        @click="abrir_modal_observacao(item)"
+                        title="Clique para ver detalhes completos"
                     >
                         {{ truncarTexto(item.motivo) }}
-                        <span v-if="item.motivo && item.motivo.length > 40" style="font-size:10px; opacity:0.7;">(ver mais)</span>
+                        <span style="font-size:10px; opacity:0.7; margin-left: 5px;">(Ver Detalhes 🔍)</span>
                     </td>
                 </tr>
             </tbody>
@@ -82,7 +82,7 @@
 
     <ModalLeitura 
         v-model:visivel="modalObs.aberto"
-        titulo="Detalhe da Movimentação"
+        titulo="Detalhe Completo da Movimentação"
         :conteudo="modalObs.texto"
     />
 
@@ -115,10 +115,7 @@ watch(texto_busca, (val) => {
 const carregar_produtos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        const res = await api_request('get', '/produtos', {
-            params: { loja_id: lojaId }
-        });
-        // CORREÇÃO: Removemos .data
+        const res = await api_request('get', '/produtos', { params: { loja_id: lojaId } });
         if (Array.isArray(res)) lista_produtos.value = res;
         else if (res.data && Array.isArray(res.data)) lista_produtos.value = res.data;
         else lista_produtos.value = [];
@@ -133,12 +130,8 @@ const buscar_historico = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
         const res = await api_request('get', '/movimentacao/historico', {
-            params: { 
-                loja_id: lojaId,
-                ...filtros.value
-            }
+            params: { loja_id: lojaId, ...filtros.value }
         });
-        // CORREÇÃO: Removemos .data
         if (Array.isArray(res)) historico.value = res;
         else if (res.data && Array.isArray(res.data)) historico.value = res.data;
         else historico.value = [];
@@ -152,15 +145,37 @@ const formatar_data = (dataIso) => {
 
 const truncarTexto = (texto) => {
     if (!texto) return '---';
-    if (texto.length > 40) {
-        return texto.substring(0, 40) + '...';
+    if (texto.length > 35) {
+        return texto.substring(0, 35) + '...';
     }
     return texto;
 };
 
-const abrir_modal_observacao = (texto) => {
-    if (!texto) return;
-    modalObs.texto = texto;
+// --- MUDANÇA PRINCIPAL AQUI ---
+const abrir_modal_observacao = (item) => {
+    if (!item) return;
+
+    const custoFormatado = item.custo_momento 
+        ? parseFloat(item.custo_momento).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+        : 'R$ 0,00';
+
+    const qtdFormatada = parseFloat(item.quantidade).toFixed(3).replace('.',',') + ' ' + (item.unidade_medida || 'UN');
+
+    // Montamos um texto rico com quebras de linha
+    modalObs.texto = `
+📦 PRODUTO: ${item.produto_nome}
+--------------------------------------
+📅 Data: ${formatar_data(item.created_at)}
+🔄 Operação: ${item.tipo_operacao}
+📍 Fluxo: De [ ${item.origem} ] para [ ${item.destino} ]
+
+📊 Quantidade: ${qtdFormatada}
+💰 Custo Unitário (na época): ${custoFormatado}
+
+📝 DETALHE / MOTIVO:
+${item.motivo}
+    `;
+    
     modalObs.aberto = true;
 };
 
@@ -192,6 +207,6 @@ onMounted(() => {
 .fluxo { font-family: monospace; color: var(--text-primary); }
 .aviso_vazio { padding: 30px; text-align: center; color: var(--text-secondary); font-style: italic; }
 
-.celula_clicavel { cursor: pointer; color: var(--text-secondary); font-style: italic; transition: color 0.2s; max-width: 250px; }
+.celula_clicavel { cursor: pointer; color: var(--text-secondary); transition: color 0.2s; max-width: 250px; }
 .celula_clicavel:hover { color: var(--primary-color); text-decoration: underline; background: var(--hover-bg); }
 </style>
