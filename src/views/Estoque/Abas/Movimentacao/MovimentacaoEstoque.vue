@@ -3,7 +3,7 @@
         
         <div class="movest_card">
             <h4 class="movest_titulo">Movimentação Interna & Entradas</h4>
-            <p class="movest_desc">Transfira itens entre depósito e vitrine ou registre compras.</p>
+            <p class="movest_desc">Transfira itens entre depósito e vitrine ou distribua para filiais.</p>
 
             <div class="movest_grid_form">
                 
@@ -17,19 +17,20 @@
                 </div>
 
                 <div class="movest_grupo" v-if="produto_selecionado">
-                    <label class="movest_label">Saldos Atuais</label>
+                    <label class="movest_label">Saldos Atuais na Unidade</label>
                     <div class="movest_display_saldo">
-                        <span class="tag_dep">📦 {{ formatar_qtd(produto_selecionado.estoque_deposito) }}</span>
-                        <span class="tag_vit">🏪 {{ formatar_qtd(produto_selecionado.estoque_vitrine) }}</span>
+                        <span class="tag_dep">📦 DEP: {{ formatar_qtd(produto_selecionado.estoque_deposito) }}</span>
+                        <span class="tag_vit">🏪 VIT: {{ formatar_qtd(produto_selecionado.estoque_vitrine) }}</span>
                     </div>
                 </div>
                 <div class="movest_grupo" v-else></div>
 
                 <div class="movest_grupo">
                     <label class="movest_label">Tipo de Operação</label>
-                    <select v-model="form.acao" class="movest_input">
+                    <select v-model="form.acao" class="movest_input" @change="limpar_campos_especificos">
                         <option value="transf_dep_vit">➡️ Depósito para Vitrine (Reposição)</option>
                         <option value="transf_vit_dep">⬅️ Vitrine para Depósito (Recolhimento)</option>
+                        <option value="transf_entre_lojas">🚚 Matriz para Filial (Distribuição)</option>
                         <option value="entrada_deposito">➕ Entrada no Depósito (Compra/Ajuste)</option>
                     </select>
                 </div>
@@ -39,9 +40,31 @@
                     <input type="number" step="0.001" v-model="form.quantidade" class="movest_input" placeholder="0.000">
                 </div>
 
+                <template v-if="form.acao === 'transf_entre_lojas'">
+                    <div class="movest_grupo">
+                        <label class="movest_label">Filial de Destino</label>
+                        <select v-model="form.loja_destino_id" class="movest_input_destaque">
+                            <option value="">Selecione a Filial...</option>
+                            <option v-for="loja in lista_lojas" :key="loja.id" :value="loja.id">
+                                {{ loja.nome_fantasia }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="movest_grupo">
+                        <label class="movest_label">Lote de Origem (Obrigatório)</label>
+                        <select v-model="form.lote_id" class="movest_input_destaque">
+                            <option value="">Selecione o Lote na Matriz...</option>
+                            <option v-for="lote in lotes_disponiveis" :key="lote.id" :value="lote.id">
+                                {{ lote.fornecedor }} | Saldo: {{ formatar_qtd(lote.quantidade_atual) }}
+                            </option>
+                        </select>
+                    </div>
+                </template>
+
                 <div class="movest_grupo movest_full_width">
                     <label class="movest_label">Motivo da Movimentação</label>
-                    <input type="text" v-model="form.motivo" class="movest_input" placeholder="Ex: Reposição da tarde, Chegada de Fornecedor...">
+                    <input type="text" v-model="form.motivo" class="movest_input" placeholder="Ex: Reposição da tarde, Envio para Filial B...">
                 </div>
             </div>
 
@@ -66,62 +89,118 @@ import { api_request } from '@/services/api_helper';
 import BuscaProdutoInput from '@/components/BuscaProdutoInput.vue';
 
 const lista_produtos = ref([]);
+const lista_lojas = ref([]); 
+const lotes_disponiveis = ref([]); 
 const produto_selecionado = ref(null);
 const texto_busca_produto = ref(''); 
 
-const form = ref({ produto_id: '', acao: 'transf_dep_vit', quantidade: '', motivo: '' });
+const form = ref({ 
+    produto_id: '', 
+    acao: 'transf_dep_vit', 
+    quantidade: '', 
+    motivo: '',
+    loja_destino_id: '',
+    lote_id: ''
+});
+
 const modal = reactive({ aberto: false, tipo: 'sucesso', titulo: '', mensagem: '' });
 
 const carregar_produtos = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        // CORREÇÃO: URL curta
-        const res = await api_request('get', '/produtos', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` },
-            params: { loja_id: lojaId }
-        });
-        
-        // CORREÇÃO: Blindagem de resposta
-        let lista = [];
-        if (Array.isArray(res)) lista = res;
-        else if (res.data && Array.isArray(res.data)) lista = res.data;
-
+        const res = await api_request('get', '/produtos', { params: { loja_id: lojaId } });
+        let lista = Array.isArray(res) ? res : (res.data || []);
         lista_produtos.value = lista.filter(p => p.tem_cadastro == 1);
     } catch (e) { console.error(e); }
 };
 
-const selecionar_produto = (prod) => {
+const carregar_lojas = async () => {
+    try {
+        const res = await api_request('get', '/lojas'); 
+        
+        // Como o seu Controller retorna { matriz: {}, filiais: [] }
+        if (res && res.filiais) {
+            lista_lojas.value = res.filiais; 
+        } else if (res && res.data && res.data.filiais) {
+            lista_lojas.value = res.data.filiais;
+        }
+
+        console.log("Filiais carregadas para destino:", lista_lojas.value);
+    } catch (e) { 
+        console.error("Erro ao carregar lojas:", e); 
+    }
+};
+
+const selecionar_produto = async (prod) => {
     produto_selecionado.value = prod;
     form.value.produto_id = prod.id;
+    
+    const lojaId = localStorage.getItem('loja_ativa_id');
+    try {
+        // Busca lotes específicos para garantir que a transferência respeite o custo e fornecedor original
+        const res = await api_request('get', '/movimentacao/lotes-produto', {
+            params: { loja_id: lojaId, produto_id: prod.id }
+        });
+        lotes_disponiveis.value = res || [];
+    } catch (e) { console.error(e); }
+};
+
+const limpar_campos_especificos = () => {
+    form.value.loja_destino_id = '';
+    form.value.lote_id = '';
 };
 
 const confirmar_movimentacao = async () => {
+    // 1. Validação de Campos Básicos
     if(!form.value.produto_id || !form.value.quantidade || !form.value.motivo) {
-        mostrar_modal('erro', 'Campos Vazios', 'Por favor, preencha todos os campos.');
+        mostrar_modal('erro', 'Campos Vazios', 'Preencha produto, quantidade e motivo.');
+        return;
+    }
+
+    // 2. Validação de Saldo no Frontend (Feedback Rápido)
+    const qtdSolicitada = parseFloat(form.value.quantidade);
+    
+    if (form.value.acao === 'transf_dep_vit') {
+        const saldoDep = parseFloat(produto_selecionado.value.estoque_deposito || 0);
+        if (qtdSolicitada > saldoDep) {
+            mostrar_modal('erro', 'Saldo Insuficiente', `O Depósito tem apenas ${formatar_qtd(saldoDep)} e você pediu ${formatar_qtd(qtdSolicitada)}.`);
+            return;
+        }
+    }
+    
+    if (form.value.acao === 'transf_vit_dep') {
+        const saldoVit = parseFloat(produto_selecionado.value.estoque_vitrine || 0);
+        if (qtdSolicitada > saldoVit) {
+            mostrar_modal('erro', 'Saldo Insuficiente', `A Vitrine tem apenas ${formatar_qtd(saldoVit)} e você pediu ${formatar_qtd(qtdSolicitada)}.`);
+            return;
+        }
+    }
+
+    // 3. Validação de Transferência entre Lojas
+    if(form.value.acao === 'transf_entre_lojas' && (!form.value.loja_destino_id || !form.value.lote_id)) {
+        mostrar_modal('erro', 'Dados da Filial', 'Selecione a filial de destino e o lote de origem.');
         return;
     }
     
+    // 4. Envio para API
     const lojaId = localStorage.getItem('loja_ativa_id');
     const payload = { ...form.value, loja_id: lojaId };
 
     try {
-        // CORREÇÃO: URL Curta
-        await api_request('post', '/movimentacao/registrar', payload, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token_erp')}` }
-        });
+        await api_request('post', '/movimentacao/registrar', payload);
+        mostrar_modal('sucesso', 'Movimentação Concluída', 'O estoque foi atualizado com sucesso.');
         
-        mostrar_modal('sucesso', 'Sucesso!', 'Movimentação realizada e estoque atualizado.');
-        
-        // Limpar Campos
+        // Reset do formulário
         form.value.quantidade = ''; 
         form.value.motivo = '';
+        form.value.loja_destino_id = '';
+        form.value.lote_id = '';
         texto_busca_produto.value = '';
         produto_selecionado.value = null;
         
         carregar_produtos();
-        
     } catch (e) {
-        mostrar_modal('erro', 'Erro ao Movimentar', e.response?.data?.mensagem || e.message);
+        mostrar_modal('erro', 'Falha na Movimentação', e.response?.data?.mensagem || e.message);
     }
 };
 
@@ -131,39 +210,40 @@ const mostrar_modal = (tipo, titulo, msg) => {
 
 const formatar_qtd = (v) => parseFloat(v).toFixed(3).replace('.', ',');
 
-onMounted(carregar_produtos);
+onMounted(() => {
+    carregar_produtos();
+    carregar_lojas();
+});
 </script>
 
 <style scoped>
-/* O ESTILO PERMANECE IGUAL, NENHUMA MUDANÇA VISUAL */
-.movest_container { animation: fadeIn 0.3s ease; }
-.movest_card { background: var(--bg-card); padding: 25px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-.movest_titulo { color: var(--primary-color); margin: 0 0 5px 0; font-size: 1.2rem; }
+.movest_container { padding: 5px; animation: fadeIn 0.3s ease; }
+.movest_card { background: var(--bg-card); padding: 25px; border-radius: 10px; border: 1px solid var(--border-color); }
+.movest_titulo { color: var(--primary-color); margin: 0 0 5px 0; }
 .movest_desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 25px; }
 
 .movest_grid_form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
 .movest_full_width { grid-column: span 2; }
 
 .movest_grupo { display: flex; flex-direction: column; }
-.movest_label { font-weight: 600; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-.movest_input { padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); font-size: 14px; transition: border 0.2s; }
-.movest_input:focus { border-color: var(--primary-color); outline: none; }
+.movest_label { font-weight: bold; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.movest_input { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); }
 
-.movest_display_saldo { display: flex; gap: 10px; padding-top: 10px; }
-.tag_dep { background: #eff6ff; color: #1d4ed8; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #dbeafe; }
-.tag_vit { background: #fff7ed; color: #c2410c; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #ffedd5; }
+/* Destaque visual para campos de transferência externa */
+.movest_input_destaque { padding: 10px; border: 2px solid #6366f1; border-radius: 6px; background: #f5f3ff; color: #1e1b4b; font-weight: 600; }
 
-.movest_btn_confirmar { width: 100%; padding: 14px; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: opacity 0.2s; }
+.movest_display_saldo { display: flex; gap: 10px; margin-top: 5px; }
+.tag_dep, .tag_vit { font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 4px; }
+.tag_dep { background: #dbeafe; color: #1e40af; }
+.tag_vit { background: #fef3c7; color: #92400e; }
+
+.movest_btn_confirmar { width: 100%; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 .movest_btn_confirmar:hover { opacity: 0.9; }
 
-.movest_modal_overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
-.movest_modal_box { background: var(--bg-card); padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 20px 25px rgba(0,0,0,0.3); animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.movest_modal_icon { font-size: 40px; margin-bottom: 15px; }
-.movest_modal_box h3 { margin: 0 0 10px 0; color: var(--text-primary); }
-.movest_modal_box p { color: var(--text-secondary); margin-bottom: 20px; }
-.movest_modal_btn { background: var(--primary-color); color: white; border: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-.movest_modal_box.erro .movest_modal_btn { background: #ef4444; }
+.movest_modal_overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.movest_modal_box { background: white; padding: 30px; border-radius: 12px; text-align: center; width: 350px; }
+.movest_modal_icon { font-size: 40px; margin-bottom: 10px; }
+.movest_modal_btn { margin-top: 20px; padding: 8px 25px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 </style>

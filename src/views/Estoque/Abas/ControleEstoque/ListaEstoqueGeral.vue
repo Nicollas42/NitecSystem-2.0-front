@@ -6,6 +6,11 @@
           <p>Listando estoque unificado de todas as unidades.</p>
       </div>
       <div class="area_busca">
+          <select v-model="filtro_categoria" class="select_filtro_geral">
+              <option value="todos">📂 Todas Categorias</option>
+              <option v-for="cat in categorias_lista" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+
           <input type="text" v-model="busca" placeholder="🔍 Buscar na rede..." class="input_padrao_geral">
       </div>
     </div>
@@ -35,7 +40,7 @@
                       ⚖️ Cód: <strong>{{ item.codigo_balanca }}</strong>
                   </div>
                   <div class="texto_ean" v-else-if="item.codigo_barras">
-                      ||| {{ item.codigo_barras }}
+                     🏷️ EAN: {{ item.codigo_barras }}
                   </div>
                   <div class="texto_ean vazio" v-else>---</div>
 
@@ -99,6 +104,9 @@ import { api_request } from '@/services/api_helper';
 
 const lista_geral = ref([]);
 const busca = ref('');
+const filtro_categoria = ref('todos'); // NOVO
+
+const categorias_lista = ["Panificação", "Confeitaria", "Bebidas", "Frios", "Insumos", "Outros"];
 
 const formatar_valor = (v) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 const formatar_qtd = (v) => parseFloat(v).toFixed(3).replace('.', ',').replace(',000', '');
@@ -117,30 +125,33 @@ const calcular_situacao_validade = (dataValidade) => {
 };
 
 const lista_filtrada_geral = computed(() => {
-    // Garante que lista_geral é um array
     const lista = Array.isArray(lista_geral.value) ? lista_geral.value : [];
     
-    if(!busca.value) return lista;
-    const termo = busca.value.toLowerCase();
+    let resultado = lista;
+
+    // FILTRO CATEGORIA
+    if (filtro_categoria.value !== 'todos') {
+        resultado = resultado.filter(p => p.categoria === filtro_categoria.value);
+    }
     
-    return lista.filter(p => 
-        p.produto_nome.toLowerCase().includes(termo) ||
-        String(p.prod_id).includes(termo) ||
-        (p.codigo_barras && p.codigo_barras.includes(termo)) ||
-        (p.codigo_balanca && String(p.codigo_balanca).includes(termo)) ||
-        p.filial_nome.toLowerCase().includes(termo) ||
-        (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo))
-    );
+    if(busca.value) {
+        const termo = busca.value.toLowerCase();
+        resultado = resultado.filter(p => 
+            p.produto_nome.toLowerCase().includes(termo) ||
+            String(p.prod_id).includes(termo) ||
+            (p.codigo_barras && p.codigo_barras.includes(termo)) ||
+            (p.codigo_balanca && String(p.codigo_balanca).includes(termo)) ||
+            p.filial_nome.toLowerCase().includes(termo) ||
+            (p.fornecedor_nome && p.fornecedor_nome.toLowerCase().includes(termo))
+        );
+    }
+    return resultado;
 });
 
 const carregar_estoque_geral = async () => {
     try {
-        // CORREÇÃO: Removida URL completa e headers manuais
         const res = await api_request('get', '/estoque-geral');
-        
-        // CORREÇÃO: Atribuição direta
         lista_geral.value = res || [];
-
     } catch (e) { console.error("Erro ao carregar estoque geral:", e); }
 };
 
@@ -151,7 +162,10 @@ onMounted(carregar_estoque_geral);
 .header_geral { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-left: 4px solid #8b5cf6; padding-left: 10px; }
 .header_geral h3 { margin: 0; color: var(--text-primary); }
 .header_geral p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+
+.area_busca { display: flex; gap: 10px; }
 .input_padrao_geral { padding: 8px; width: 300px; border: 1px solid var(--border-color); border-radius: 6px; }
+.select_filtro_geral { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-primary); font-weight: 500; cursor: pointer; min-width: 140px; }
 
 .table_container { overflow-x: auto; }
 .tabela_produtos { width: 100%; border-collapse: collapse; min-width: 900px; }
@@ -165,7 +179,7 @@ onMounted(carregar_estoque_geral);
 .nome_principal { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
 .texto_balanca { font-size: 11px; color: #d97706; background: #fffbeb; padding: 2px 5px; border-radius: 4px; border: 1px solid #fcd34d; display: inline-block; margin-bottom: 4px; }
 .texto_ean { font-family: monospace; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
-.badge_cat { background: var(--bg-page); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid var(--border-color); }
+.badge_cat { background: var(--bg-page); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid var(--border-color); margin-top: 2px; display: inline-block; }
 
 .texto_custo { color: var(--text-secondary); }
 .texto_venda { font-weight: bold; }

@@ -126,7 +126,10 @@ watch(() => props.produtoEdicao, (novoVal) => {
 const submit = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     try {
-        await salvarProduto(lojaId, !!props.produtoEdicao);
+        // CORREÇÃO: Só é edição se o objeto existir E tiver um ID válido (maior que 0)
+        const ehEdicao = props.produtoEdicao && props.produtoEdicao.id;
+        
+        await salvarProduto(lojaId, ehEdicao);
         emit('salvo');
     } catch (e) {
         alert("Erro: " + (e.response?.data?.mensagem || e.message));

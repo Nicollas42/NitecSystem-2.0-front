@@ -6,15 +6,20 @@
         </div>
 
         <div class="controles_topo">
+            <select v-model="filtro_categoria" class="select_filtro">
+                <option value="todos">📂 Todas Categorias</option>
+                <option v-for="cat in categorias_lista" :key="cat" :value="cat">{{ cat }}</option>
+            </select>
+
             <select v-model="filtro_origem" class="select_filtro">
-                <option value="local">🏠 Apenas desta Filial</option>
-                <option value="todos">🌎 Ver Todos (Rede)</option>
+                <option value="local">🏠 Desta Filial</option>
+                <option value="todos">🌎 Rede Toda</option>
                 <option value="externo">👻 Não Cadastrados</option>
             </select>
 
             <select v-model="filtro_estoque" class="select_filtro">
-                <option value="com_estoque">🟢 Em Exposição (>0)</option>
-                <option value="zerados">🔴 Sem Exposição (0)</option>
+                <option value="com_estoque">🟢 Em Exposição</option>
+                <option value="zerados">🔴 Sem Exposição</option>
                 <option value="todos">📦 Todos</option>
             </select>
 
@@ -57,7 +62,7 @@
                              ⚖️ Cód: <strong>{{ prod.codigo_balanca }}</strong>
                         </div>
                         <div class="texto_ean" v-else-if="prod.codigo_barras">
-                             ||| {{ prod.codigo_barras }}
+                             🏷️ EAN: {{ prod.codigo_barras }}
                         </div>
                         <div class="texto_ean vazio" v-else>---</div>
 
@@ -153,6 +158,10 @@ const lista_produtos = ref([]);
 const busca = ref('');
 const filtro_origem = ref('local'); 
 const filtro_estoque = ref('com_estoque');
+const filtro_categoria = ref('todos'); // NOVO
+
+const categorias_lista = ["Panificação", "Confeitaria", "Bebidas", "Frios", "Insumos", "Outros"];
+
 const modal_senha_aberto = ref(false);
 const prod_para_editar = ref(null);
 const id_editando = ref(null);
@@ -179,19 +188,17 @@ const verifica_agrupamento = (prod, index) => {
 };
 
 const lista_filtrada = computed(() => {
-    // Garante que lista_produtos é array antes de filtrar
     let lista = Array.isArray(lista_produtos.value) ? lista_produtos.value : [];
 
-    if (filtro_origem.value === 'local') {
-        lista = lista.filter(p => p.tem_cadastro == 1);
-    } else if (filtro_origem.value === 'externo') {
-        lista = lista.filter(p => p.tem_cadastro == 0);
-    }
+    if (filtro_origem.value === 'local') lista = lista.filter(p => p.tem_cadastro == 1);
+    else if (filtro_origem.value === 'externo') lista = lista.filter(p => p.tem_cadastro == 0);
 
-    if (filtro_estoque.value === 'com_estoque') {
-        lista = lista.filter(p => parseFloat(p.estoque_vitrine) > 0);
-    } else if (filtro_estoque.value === 'zerados') {
-        lista = lista.filter(p => parseFloat(p.estoque_vitrine) <= 0);
+    if (filtro_estoque.value === 'com_estoque') lista = lista.filter(p => parseFloat(p.estoque_vitrine) > 0);
+    else if (filtro_estoque.value === 'zerados') lista = lista.filter(p => parseFloat(p.estoque_vitrine) <= 0);
+
+    // FILTRO DE CATEGORIA
+    if (filtro_categoria.value !== 'todos') {
+        lista = lista.filter(p => p.categoria === filtro_categoria.value);
     }
 
     if(busca.value) {
@@ -211,14 +218,8 @@ const carregar_vitrine = async () => {
     const lojaId = localStorage.getItem('loja_ativa_id');
     if (!lojaId) return;
     try {
-        // CORREÇÃO: Removida URL completa e headers manuais
-        const res = await api_request('get', '/produtos', {
-            params: { loja_id: lojaId }
-        });
-        
-        // CORREÇÃO: Atribuição direta sem .data e garantia de array
+        const res = await api_request('get', '/produtos', { params: { loja_id: lojaId } });
         lista_produtos.value = res || [];
-
     } catch (e) { console.error("Erro ao carregar vitrine:", e); }
 };
 
@@ -252,10 +253,10 @@ onMounted(carregar_vitrine);
 <style scoped>
 .barra_topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
 .titulo_area { display: flex; align-items: center; gap: 10px; }
-.controles_topo { display: flex; gap: 10px; align-items: center; }
+.controles_topo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-.select_filtro { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-primary); font-weight: 500; cursor: pointer; min-width: 160px; }
-.input_padrao { width: 200px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); }
+.select_filtro { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-page); color: var(--text-primary); font-weight: 500; cursor: pointer; min-width: 140px; }
+.input_padrao { width: 180px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); }
 
 .table_container { overflow-x: auto; }
 .tabela_produtos { width: 100%; border-collapse: collapse; min-width: 900px; }
@@ -294,7 +295,6 @@ onMounted(carregar_vitrine);
 .box_edicao_expandida { background: white; border-bottom: 2px solid #d97706; padding: 15px; }
 .aviso_vazio { text-align: center; padding: 30px; color: var(--text-secondary); }
 
-/* --- NOVOS ESTILOS --- */
 .box_fornecedor { line-height: 1.2; }
 .nome_fornecedor { font-weight: 600; color: var(--text-primary); font-size: 13px; }
 .nome_vendedor { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }

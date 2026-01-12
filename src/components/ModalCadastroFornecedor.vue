@@ -10,21 +10,21 @@
             <div class="modal_body">
                 <div class="grupo_input">
                     <label>Nome Fantasia *</label>
-                    <input type="text" v-model="form.nome_fantasia" class="input_padrao" placeholder="Ex: Atacadão dos Frios">
+                    <input type="text" v-model="form.nome_fantasia" class="input_padrao" placeholder="Ex: Atacadão dos Frios / Seu João">
                 </div>
 
                 <div class="grupo_input">
-                    <label>Razão Social (Nome Real)</label>
-                    <input type="text" v-model="form.razao_social" class="input_padrao" placeholder="Ex: Comércio de Alimentos LTDA">
+                    <label>Razão Social (Opcional)</label>
+                    <input type="text" v-model="form.razao_social" class="input_padrao" placeholder="Nome completo ou Razão Social">
                 </div>
 
                 <div class="linha_dupla">
                     <div class="grupo_input">
-                        <label>CNPJ</label>
-                        <input type="text" v-model="form.cnpj" class="input_padrao" placeholder="Apenas números">
+                        <label>CNPJ / CPF <small style="font-weight:normal; color:#666;">(Opcional)</small></label>
+                        <input type="text" v-model="form.cnpj" class="input_padrao" placeholder="Deixe vazio para informal">
                     </div>
                     <div class="grupo_input">
-                        <label>Telefone Empresa (Fixo/SAC)</label>
+                        <label>Telefone</label>
                         <input type="text" v-model="form.telefone" class="input_padrao" placeholder="(99) 3333-0000">
                     </div>
                 </div>
@@ -36,7 +36,7 @@
                             <input type="text" v-model="form.vendedor_nome" class="input_padrao" placeholder="Ex: João">
                         </div>
                         <div class="grupo_input">
-                            <label>WhatsApp Vendedor (Novo)</label>
+                            <label>WhatsApp Vendedor</label>
                             <input type="text" v-model="form.vendedor_telefone" class="input_padrao" placeholder="(99) 99999-9999">
                         </div>
                     </div>
@@ -63,11 +63,7 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue';
-// CORREÇÃO 1: Importar o api_request e remover axios
 import { api_request } from '@/services/api_helper'; 
-
-// Ajuste o caminho do import acima se a pasta components estiver em src/components
-// Se api_helper.js estiver em src/, o caminho '../api_helper' está correto.
 
 const props = defineProps(['visivel', 'dadosEdicao']);
 const emit = defineEmits(['update:visivel', 'salvo']);
@@ -114,7 +110,6 @@ const salvar = async () => {
     if (!form.nome_fantasia) return alert("Nome Fantasia é obrigatório");
 
     try {
-        // CORREÇÃO 2: Usar URL relativa e lógica do api_request
         let url = '/fornecedores';
         let method = 'post';
 
@@ -123,10 +118,8 @@ const salvar = async () => {
             method = 'put';
         }
 
-        // CORREÇÃO 3: Chamada limpa (sem headers manuais)
         const res = await api_request(method, url, form);
         
-        // O api_request já devolve o objeto limpo, não precisa de .data
         emit('salvo', res);
         mostrarSucesso.value = true;
 
